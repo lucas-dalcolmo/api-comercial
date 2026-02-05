@@ -27,7 +27,8 @@ public abstract class IntLookupControllerBase<TEntity> : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] LookupQueryDto query, CancellationToken cancellationToken)
     {
-        var result = await _service.GetAllAsync(query, cancellationToken);
+        var normalized = query.Ativo.HasValue ? query : query with { Ativo = true };
+        var result = await _service.GetAllAsync(normalized, cancellationToken);
         return ToActionResult(result);
     }
 
@@ -49,6 +50,13 @@ public abstract class IntLookupControllerBase<TEntity> : ControllerBase
     public async Task<IActionResult> Delete([FromRoute] int id, CancellationToken cancellationToken)
     {
         var result = await _service.DeleteAsync(id, cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{id:int}/reactivate")]
+    public async Task<IActionResult> Reactivate([FromRoute] int id, CancellationToken cancellationToken)
+    {
+        var result = await _service.ReactivateAsync(id, cancellationToken);
         return ToActionResult(result);
     }
 
@@ -102,7 +110,8 @@ public abstract class CodeNameControllerBase<TEntity> : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] CodeNameQueryDto query, CancellationToken cancellationToken)
     {
-        var result = await _service.GetAllAsync(query, cancellationToken);
+        var normalized = query.Ativo.HasValue ? query : query with { Ativo = true };
+        var result = await _service.GetAllAsync(normalized, cancellationToken);
         return ToActionResult(result);
     }
 
@@ -124,6 +133,13 @@ public abstract class CodeNameControllerBase<TEntity> : ControllerBase
     public async Task<IActionResult> Delete([FromRoute] string code, CancellationToken cancellationToken)
     {
         var result = await _service.DeleteAsync(code, cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{code}/reactivate")]
+    public async Task<IActionResult> Reactivate([FromRoute] string code, CancellationToken cancellationToken)
+    {
+        var result = await _service.ReactivateAsync(code, cancellationToken);
         return ToActionResult(result);
     }
 

@@ -13,12 +13,16 @@ public interface IStateService
     Task<OperationResult<StateDto>> CreateAsync(StateCreateDto dto, CancellationToken cancellationToken);
     Task<OperationResult<StateDto>> PatchAsync(string stateCode, StateUpdateDto dto, CancellationToken cancellationToken);
     Task<OperationResult<bool>> DeleteAsync(string stateCode, CancellationToken cancellationToken);
+    Task<OperationResult<StateDto>> ReactivateAsync(string stateCode, CancellationToken cancellationToken);
 }
 
 public sealed class StateService : IStateService
 {
     private readonly IRepository<State, string> _stateRepository;
     private readonly IRepository<Country, string> _countryRepository;
+    private const int StateCodeLength = 2;
+    private const int CountryCodeLength = 2;
+    private const int StateNameMaxLength = 80;
 
     public StateService(IRepository<State, string> stateRepository, IRepository<Country, string> countryRepository)
     {
@@ -28,6 +32,11 @@ public sealed class StateService : IStateService
 
     public async Task<OperationResult<StateDto>> GetByIdAsync(string stateCode, CancellationToken cancellationToken)
     {
+        if (!IsValidCode(stateCode, StateCodeLength))
+        {
+            return OperationResult<StateDto>.Fail("validation", $"StateCode must be {StateCodeLength} characters.");
+        }
+
         var entity = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
         if (entity is null || !entity.Ativo)
         {
@@ -96,6 +105,21 @@ public sealed class StateService : IStateService
             return OperationResult<StateDto>.Fail("validation", "StateCode, CountryCode, and StateName are required.");
         }
 
+        if (!IsValidCode(stateCode, StateCodeLength))
+        {
+            return OperationResult<StateDto>.Fail("validation", $"StateCode must be {StateCodeLength} characters.");
+        }
+
+        if (!IsValidCode(countryCode, CountryCodeLength))
+        {
+            return OperationResult<StateDto>.Fail("validation", $"CountryCode must be {CountryCodeLength} characters.");
+        }
+
+        if (stateName.Length > StateNameMaxLength)
+        {
+            return OperationResult<StateDto>.Fail("validation", $"StateName must be at most {StateNameMaxLength} characters.");
+        }
+
         var existing = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
         if (existing is not null)
         {
@@ -136,6 +160,11 @@ public sealed class StateService : IStateService
 
     public async Task<OperationResult<StateDto>> PatchAsync(string stateCode, StateUpdateDto dto, CancellationToken cancellationToken)
     {
+        if (!IsValidCode(stateCode, StateCodeLength))
+        {
+            return OperationResult<StateDto>.Fail("validation", $"StateCode must be {StateCodeLength} characters.");
+        }
+
         var entity = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
         if (entity is null || !entity.Ativo)
         {
@@ -152,6 +181,11 @@ public sealed class StateService : IStateService
 
         if (!string.IsNullOrWhiteSpace(countryCode))
         {
+            if (!IsValidCode(countryCode, CountryCodeLength))
+            {
+                return OperationResult<StateDto>.Fail("validation", $"CountryCode must be {CountryCodeLength} characters.");
+            }
+
             var country = await _countryRepository.GetByIdAsync(countryCode, cancellationToken);
             if (country is null)
             {
@@ -163,6 +197,11 @@ public sealed class StateService : IStateService
 
         if (!string.IsNullOrWhiteSpace(stateName))
         {
+            if (stateName.Length > StateNameMaxLength)
+            {
+                return OperationResult<StateDto>.Fail("validation", $"StateName must be at most {StateNameMaxLength} characters.");
+            }
+
             entity.Name = stateName;
         }
 
@@ -186,6 +225,11 @@ public sealed class StateService : IStateService
 
     public async Task<OperationResult<bool>> DeleteAsync(string stateCode, CancellationToken cancellationToken)
     {
+        if (!IsValidCode(stateCode, StateCodeLength))
+        {
+            return OperationResult<bool>.Fail("validation", $"StateCode must be {StateCodeLength} characters.");
+        }
+
         var entity = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
         if (entity is null || !entity.Ativo)
         {
@@ -205,6 +249,39 @@ public sealed class StateService : IStateService
 
         return OperationResult<bool>.Ok(true);
     }
+
+    public async Task<OperationResult<StateDto>> ReactivateAsync(string stateCode, CancellationToken cancellationToken)
+    {
+        if (!IsValidCode(stateCode, StateCodeLength))
+        {
+            return OperationResult<StateDto>.Fail("validation", $"StateCode must be {StateCodeLength} characters.");
+        }
+
+        var entity = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
+        if (entity is null)
+        {
+            return OperationResult<StateDto>.Fail("not_found", "Record not found.");
+        }
+
+        if (!entity.Ativo)
+        {
+            entity.Ativo = true;
+            try
+            {
+                await _stateRepository.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                return OperationResult<StateDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
+            }
+        }
+
+        var result = new StateDto(entity.Code, entity.CountryCode, entity.Name, entity.Ativo);
+        return OperationResult<StateDto>.Ok(result);
+    }
+
+    private static bool IsValidCode(string? code, int length)
+        => !string.IsNullOrWhiteSpace(code) && code.Length == length;
 
     private static int NormalizePage(int? page)
         => page.HasValue && page.Value > 0 ? page.Value : 1;

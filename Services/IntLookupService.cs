@@ -14,6 +14,7 @@ public interface IIntLookupService<TEntity>
     Task<OperationResult<LookupDto>> CreateAsync(LookupCreateDto dto, CancellationToken cancellationToken);
     Task<OperationResult<LookupDto>> PatchAsync(int id, LookupUpdateDto dto, CancellationToken cancellationToken);
     Task<OperationResult<bool>> DeleteAsync(int id, CancellationToken cancellationToken);
+    Task<OperationResult<LookupDto>> ReactivateAsync(int id, CancellationToken cancellationToken);
 }
 
 public sealed class IntLookupService<TEntity> : IIntLookupService<TEntity>
@@ -184,6 +185,31 @@ public sealed class IntLookupService<TEntity> : IIntLookupService<TEntity>
         }
 
         return OperationResult<bool>.Ok(true);
+    }
+
+    public async Task<OperationResult<LookupDto>> ReactivateAsync(int id, CancellationToken cancellationToken)
+    {
+        var entity = await _repository.GetByIdAsync(id, cancellationToken);
+        if (entity is null)
+        {
+            return OperationResult<LookupDto>.Fail("not_found", "Record not found.");
+        }
+
+        if (!entity.Ativo)
+        {
+            entity.Ativo = true;
+            try
+            {
+                await _repository.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                return OperationResult<LookupDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
+            }
+        }
+
+        var result = new LookupDto(entity.Id, entity.Name, entity.Ativo);
+        return OperationResult<LookupDto>.Ok(result);
     }
 
     private static int NormalizePage(int? page)

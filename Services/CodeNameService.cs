@@ -14,12 +14,14 @@ public interface ICodeNameService<TEntity>
     Task<OperationResult<CodeNameDto>> CreateAsync(CodeNameCreateDto dto, CancellationToken cancellationToken);
     Task<OperationResult<CodeNameDto>> PatchAsync(string code, CodeNameUpdateDto dto, CancellationToken cancellationToken);
     Task<OperationResult<bool>> DeleteAsync(string code, CancellationToken cancellationToken);
+    Task<OperationResult<CodeNameDto>> ReactivateAsync(string code, CancellationToken cancellationToken);
 }
 
 public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
     where TEntity : CodeNameEntity, new()
 {
     private readonly IRepository<TEntity, string> _repository;
+    private static readonly (int? CodeMax, int? NameMax) _limits = GetLimits();
 
     public CodeNameService(IRepository<TEntity, string> repository)
     {
@@ -88,6 +90,12 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
             return OperationResult<CodeNameDto>.Fail("validation", "Code and Name are required.");
         }
 
+        var lengthError = ValidateLengths(code, name);
+        if (lengthError is not null)
+        {
+            return lengthError;
+        }
+
         var exists = await _repository.GetByIdAsync(code, cancellationToken);
         if (exists is not null)
         {
@@ -133,6 +141,12 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
             return OperationResult<CodeNameDto>.Fail("validation", "At least one field must be provided.");
         }
 
+        var lengthError = ValidateLengths(code, name);
+        if (lengthError is not null)
+        {
+            return lengthError;
+        }
+
         if (!string.IsNullOrWhiteSpace(name))
         {
             entity.Name = name;
@@ -176,6 +190,62 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
         }
 
         return OperationResult<bool>.Ok(true);
+    }
+
+    public async Task<OperationResult<CodeNameDto>> ReactivateAsync(string code, CancellationToken cancellationToken)
+    {
+        var entity = await _repository.GetByIdAsync(code, cancellationToken);
+        if (entity is null)
+        {
+            return OperationResult<CodeNameDto>.Fail("not_found", "Record not found.");
+        }
+
+        if (!entity.Ativo)
+        {
+            entity.Ativo = true;
+            try
+            {
+                await _repository.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                return OperationResult<CodeNameDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
+            }
+        }
+
+        var result = new CodeNameDto(entity.Code, entity.Name, entity.Ativo);
+        return OperationResult<CodeNameDto>.Ok(result);
+    }
+
+    private static (int? CodeMax, int? NameMax) GetLimits()
+    {
+        var type = typeof(TEntity);
+        if (type == typeof(Country))
+        {
+            return (2, 80);
+        }
+
+        if (type == typeof(Currency))
+        {
+            return (3, 50);
+        }
+
+        return (null, null);
+    }
+
+    private static OperationResult<CodeNameDto>? ValidateLengths(string? code, string? name)
+    {
+        if (_limits.CodeMax.HasValue && !string.IsNullOrWhiteSpace(code) && code.Length > _limits.CodeMax.Value)
+        {
+            return OperationResult<CodeNameDto>.Fail("validation", $"Code must be at most {_limits.CodeMax.Value} characters.");
+        }
+
+        if (_limits.NameMax.HasValue && !string.IsNullOrWhiteSpace(name) && name.Length > _limits.NameMax.Value)
+        {
+            return OperationResult<CodeNameDto>.Fail("validation", $"Name must be at most {_limits.NameMax.Value} characters.");
+        }
+
+        return null;
     }
 
     private static int NormalizePage(int? page)

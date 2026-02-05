@@ -26,7 +26,8 @@ public sealed class StatesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] StateQueryDto query, CancellationToken cancellationToken)
     {
-        var result = await _service.GetAllAsync(query, cancellationToken);
+        var normalized = query.Ativo.HasValue ? query : query with { Ativo = true };
+        var result = await _service.GetAllAsync(normalized, cancellationToken);
         return ToActionResult(result);
     }
 
@@ -48,6 +49,13 @@ public sealed class StatesController : ControllerBase
     public async Task<IActionResult> Delete([FromRoute] string stateCode, CancellationToken cancellationToken)
     {
         var result = await _service.DeleteAsync(stateCode, cancellationToken);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("{stateCode}/reactivate")]
+    public async Task<IActionResult> Reactivate([FromRoute] string stateCode, CancellationToken cancellationToken)
+    {
+        var result = await _service.ReactivateAsync(stateCode, cancellationToken);
         return ToActionResult(result);
     }
 

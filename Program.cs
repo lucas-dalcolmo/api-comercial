@@ -29,7 +29,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Informe apenas o token (o Swagger adiciona o prefixo Bearer automaticamente)."
+        Description = "Provide only the token (Swagger adds the Bearer prefix automatically)."
     });
 
     options.OperationFilter<AuthorizeOperationFilter>();
