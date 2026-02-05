@@ -11,6 +11,11 @@ using Api.Comercial.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>(optional: true);
+}
+
 builder.Services.AddControllers();
 
 builder.Services.AddSwaggerGen(options =>
