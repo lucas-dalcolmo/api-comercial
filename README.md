@@ -1,6 +1,6 @@
-﻿# api-comercial
+# api-comercial
 
-API comercial do ecossistema Apeiron. Projeto ASP.NET Core (.NET 10) com Swagger, autenticação e endpoints de domínio.
+Commercial API for the Apeiron ecosystem. ASP.NET Core (.NET 10) project with Swagger, authentication, and domain endpoints.
 
 ## Stack
 - ASP.NET Core Web API (.NET 10)
@@ -8,18 +8,18 @@ API comercial do ecossistema Apeiron. Projeto ASP.NET Core (.NET 10) com Swagger
 - Swagger (Swashbuckle)
 - Microsoft Identity Web (Azure AD / Entra ID)
 
-## Como rodar
-1. Ajuste `appsettings.json` ou `appsettings.Development.json`.
-2. Execute: `dotnet run`
-3. Acesse o Swagger em `/swagger`.
+## How to run
+1. Update `appsettings.json` or `appsettings.Development.json`.
+2. Run: `dotnet run`
+3. Open Swagger at `/swagger`.
 
-## Configurações
-No `appsettings.json`, configure:
-- `ConnectionStrings:Default` com a string do SQL Server.
-- `AzureAd:*` para autenticação em produção (Entra ID).
-- `DevAuth:*` para autenticação simplificada em desenvolvimento.
+## Configuration
+In `appsettings.json`, set:
+- `ConnectionStrings:Default` with your SQL Server connection string.
+- `AzureAd:*` for production authentication (Entra ID).
+- `DevAuth:*` for simplified development authentication.
 
-Exemplo (placeholders):
+Example (placeholders):
 ```json
 {
   "ConnectionStrings": {
@@ -42,16 +42,16 @@ Exemplo (placeholders):
 }
 ```
 
-## Autenticação
-- **Development**: usa o esquema `DevBearer`.
-  - Envie `Authorization: Bearer <token>` ou `?dev_token=<token>`.
-  - O token esperado vem de `DevAuth:Token`.
-- **Production**: usa Azure AD / Entra ID via `Microsoft.Identity.Web`.
+## Authentication
+- **Development**: uses the `DevBearer` scheme.
+  - Send `Authorization: Bearer <token>` or `?dev_token=<token>`.
+  - The expected token comes from `DevAuth:Token`.
+- **Production**: uses Azure AD / Entra ID via `Microsoft.Identity.Web`.
 
-## Endpoints atuais
-- `GET /api/health` (healthcheck)
-- `GET /api/whoami` (requer autenticação)
-- Domínios (CRUD padrão):
+## Current endpoints
+- `GET /api/health` (health check)
+- `GET /api/whoami` (requires authentication)
+- Domains (standard CRUD):
   - `api/domains/states`
   - `api/domains/blood-types`
   - `api/domains/budget-levels`
@@ -76,13 +76,13 @@ Exemplo (placeholders):
   - `api/domains/countries`
   - `api/domains/currencies`
 
-## Scaffold DB-first (futuro)
-Quando o banco estiver disponível, rode:
+## Scaffold DB-first (future)
+When the database is available, run:
 
 ```bash
 dotnet ef dbcontext scaffold "Server=SERVER;Database=DBNAME;User Id=USER;Password=PASSWORD;Encrypt=True;TrustServerCertificate=False;" Microsoft.EntityFrameworkCore.SqlServer --schema crm --output-dir Data/Entities --context-dir Data --context ApeironDbContext --use-database-names --no-pluralize --force
 ```
 
-Observações:
-- O `ApeironDbContext` atual é um placeholder parcial.
-- Após o scaffold, mantenha/atualize o contexto gerado conforme necessário e remova o placeholder se houver conflito.
+Notes:
+- The current `ApeironDbContext` is a partial placeholder.
+- After scaffolding, keep/update the generated context as needed and remove the placeholder if it conflicts.

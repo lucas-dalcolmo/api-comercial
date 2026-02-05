@@ -29,12 +29,12 @@ public sealed class StateService : IStateService
     public async Task<OperationResult<StateDto>> GetByIdAsync(string stateCode, CancellationToken cancellationToken)
     {
         var entity = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<StateDto>.Fail("not_found", "Record not found.");
         }
 
-        var result = new StateDto(entity.Code, entity.CountryCode, entity.Name);
+        var result = new StateDto(entity.Code, entity.CountryCode, entity.Name, entity.Ativo);
         return OperationResult<StateDto>.Ok(result);
     }
 
@@ -64,12 +64,21 @@ public sealed class StateService : IStateService
             dataQuery = dataQuery.Where(e => e.Name == stateName);
         }
 
+        if (query.Ativo.HasValue)
+        {
+            dataQuery = dataQuery.Where(e => e.Ativo == query.Ativo.Value);
+        }
+        else
+        {
+            dataQuery = dataQuery.Where(e => e.Ativo);
+        }
+
         var totalCount = await dataQuery.CountAsync(cancellationToken);
         var items = await dataQuery
             .OrderBy(e => e.Code)
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize)
-            .Select(e => new StateDto(e.Code, e.CountryCode, e.Name))
+            .Select(e => new StateDto(e.Code, e.CountryCode, e.Name, e.Ativo))
             .ToListAsync(cancellationToken);
 
         var result = new PagedResult<StateDto>(items, currentPage, pageSize, totalCount);
@@ -90,7 +99,10 @@ public sealed class StateService : IStateService
         var existing = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
         if (existing is not null)
         {
-            return OperationResult<StateDto>.Fail("conflict", "StateCode already exists.");
+            var message = existing.Ativo
+                ? "StateCode already exists."
+                : "StateCode already exists as an inactive record.";
+            return OperationResult<StateDto>.Fail("conflict", message);
         }
 
         var country = await _countryRepository.GetByIdAsync(countryCode, cancellationToken);
@@ -103,7 +115,8 @@ public sealed class StateService : IStateService
         {
             Code = stateCode,
             CountryCode = countryCode,
-            Name = stateName
+            Name = stateName,
+            Ativo = true
         };
 
         await _stateRepository.AddAsync(entity, cancellationToken);
@@ -117,14 +130,14 @@ public sealed class StateService : IStateService
             return OperationResult<StateDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
         }
 
-        var result = new StateDto(entity.Code, entity.CountryCode, entity.Name);
+        var result = new StateDto(entity.Code, entity.CountryCode, entity.Name, entity.Ativo);
         return OperationResult<StateDto>.Ok(result);
     }
 
     public async Task<OperationResult<StateDto>> PatchAsync(string stateCode, StateUpdateDto dto, CancellationToken cancellationToken)
     {
         var entity = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<StateDto>.Fail("not_found", "Record not found.");
         }
@@ -132,7 +145,7 @@ public sealed class StateService : IStateService
         var countryCode = dto.CountryCode?.Trim();
         var stateName = dto.StateName?.Trim();
 
-        if (string.IsNullOrWhiteSpace(countryCode) && string.IsNullOrWhiteSpace(stateName))
+        if (string.IsNullOrWhiteSpace(countryCode) && string.IsNullOrWhiteSpace(stateName) && !dto.Ativo.HasValue)
         {
             return OperationResult<StateDto>.Fail("validation", "At least one field must be provided.");
         }
@@ -153,6 +166,11 @@ public sealed class StateService : IStateService
             entity.Name = stateName;
         }
 
+        if (dto.Ativo.HasValue)
+        {
+            entity.Ativo = dto.Ativo.Value;
+        }
+
         try
         {
             await _stateRepository.SaveChangesAsync(cancellationToken);
@@ -162,19 +180,19 @@ public sealed class StateService : IStateService
             return OperationResult<StateDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
         }
 
-        var result = new StateDto(entity.Code, entity.CountryCode, entity.Name);
+        var result = new StateDto(entity.Code, entity.CountryCode, entity.Name, entity.Ativo);
         return OperationResult<StateDto>.Ok(result);
     }
 
     public async Task<OperationResult<bool>> DeleteAsync(string stateCode, CancellationToken cancellationToken)
     {
         var entity = await _stateRepository.GetByIdAsync(stateCode, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<bool>.Fail("not_found", "Record not found.");
         }
 
-        _stateRepository.Remove(entity);
+        entity.Ativo = false;
 
         try
         {

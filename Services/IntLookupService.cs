@@ -29,12 +29,12 @@ public sealed class IntLookupService<TEntity> : IIntLookupService<TEntity>
     public async Task<OperationResult<LookupDto>> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
         var entity = await _repository.GetByIdAsync(id, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<LookupDto>.Fail("not_found", "Record not found.");
         }
 
-        var result = new LookupDto(entity.Id, entity.Name);
+        var result = new LookupDto(entity.Id, entity.Name, entity.Ativo);
         return OperationResult<LookupDto>.Ok(result);
     }
 
@@ -56,12 +56,21 @@ public sealed class IntLookupService<TEntity> : IIntLookupService<TEntity>
             dataQuery = dataQuery.Where(e => e.Name == name);
         }
 
+        if (query.Ativo.HasValue)
+        {
+            dataQuery = dataQuery.Where(e => e.Ativo == query.Ativo.Value);
+        }
+        else
+        {
+            dataQuery = dataQuery.Where(e => e.Ativo);
+        }
+
         var totalCount = await dataQuery.CountAsync(cancellationToken);
         var items = await dataQuery
             .OrderBy(e => e.Id)
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize)
-            .Select(e => new LookupDto(e.Id, e.Name))
+            .Select(e => new LookupDto(e.Id, e.Name, e.Ativo))
             .ToListAsync(cancellationToken);
 
         var result = new PagedResult<LookupDto>(items, currentPage, pageSize, totalCount);
@@ -76,18 +85,22 @@ public sealed class IntLookupService<TEntity> : IIntLookupService<TEntity>
             return OperationResult<LookupDto>.Fail("validation", "Name is required.");
         }
 
-        var exists = await _repository
+        var existing = await _repository
             .Query(asNoTracking: true)
-            .AnyAsync(e => e.Name == name, cancellationToken);
+            .FirstOrDefaultAsync(e => e.Name == name, cancellationToken);
 
-        if (exists)
+        if (existing is not null)
         {
-            return OperationResult<LookupDto>.Fail("conflict", "Name already exists.");
+            var message = existing.Ativo
+                ? "Name already exists."
+                : "Name already exists as an inactive record.";
+            return OperationResult<LookupDto>.Fail("conflict", message);
         }
 
         var entity = new TEntity
         {
-            Name = name
+            Name = name,
+            Ativo = true
         };
 
         await _repository.AddAsync(entity, cancellationToken);
@@ -101,34 +114,42 @@ public sealed class IntLookupService<TEntity> : IIntLookupService<TEntity>
             return OperationResult<LookupDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
         }
 
-        var result = new LookupDto(entity.Id, entity.Name);
+        var result = new LookupDto(entity.Id, entity.Name, entity.Ativo);
         return OperationResult<LookupDto>.Ok(result);
     }
 
     public async Task<OperationResult<LookupDto>> PatchAsync(int id, LookupUpdateDto dto, CancellationToken cancellationToken)
     {
         var entity = await _repository.GetByIdAsync(id, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<LookupDto>.Fail("not_found", "Record not found.");
         }
 
         var name = dto.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        if (string.IsNullOrWhiteSpace(name) && !dto.Ativo.HasValue)
         {
-            return OperationResult<LookupDto>.Fail("validation", "Name is required.");
+            return OperationResult<LookupDto>.Fail("validation", "At least one field must be provided.");
         }
 
-        var exists = await _repository
-            .Query(asNoTracking: true)
-            .AnyAsync(e => e.Name == name && e.Id != id, cancellationToken);
-
-        if (exists)
+        if (!string.IsNullOrWhiteSpace(name))
         {
-            return OperationResult<LookupDto>.Fail("conflict", "Name already exists.");
+            var exists = await _repository
+                .Query(asNoTracking: true)
+                .AnyAsync(e => e.Name == name && e.Id != id, cancellationToken);
+
+            if (exists)
+            {
+                return OperationResult<LookupDto>.Fail("conflict", "Name already exists.");
+            }
+
+            entity.Name = name;
         }
 
-        entity.Name = name;
+        if (dto.Ativo.HasValue)
+        {
+            entity.Ativo = dto.Ativo.Value;
+        }
 
         try
         {
@@ -139,19 +160,19 @@ public sealed class IntLookupService<TEntity> : IIntLookupService<TEntity>
             return OperationResult<LookupDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
         }
 
-        var result = new LookupDto(entity.Id, entity.Name);
+        var result = new LookupDto(entity.Id, entity.Name, entity.Ativo);
         return OperationResult<LookupDto>.Ok(result);
     }
 
     public async Task<OperationResult<bool>> DeleteAsync(int id, CancellationToken cancellationToken)
     {
         var entity = await _repository.GetByIdAsync(id, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<bool>.Fail("not_found", "Record not found.");
         }
 
-        _repository.Remove(entity);
+        entity.Ativo = false;
 
         try
         {

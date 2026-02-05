@@ -29,12 +29,12 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
     public async Task<OperationResult<CodeNameDto>> GetByIdAsync(string code, CancellationToken cancellationToken)
     {
         var entity = await _repository.GetByIdAsync(code, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<CodeNameDto>.Fail("not_found", "Record not found.");
         }
 
-        var result = new CodeNameDto(entity.Code, entity.Name);
+        var result = new CodeNameDto(entity.Code, entity.Name, entity.Ativo);
         return OperationResult<CodeNameDto>.Ok(result);
     }
 
@@ -57,12 +57,21 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
             dataQuery = dataQuery.Where(e => e.Name == name);
         }
 
+        if (query.Ativo.HasValue)
+        {
+            dataQuery = dataQuery.Where(e => e.Ativo == query.Ativo.Value);
+        }
+        else
+        {
+            dataQuery = dataQuery.Where(e => e.Ativo);
+        }
+
         var totalCount = await dataQuery.CountAsync(cancellationToken);
         var items = await dataQuery
             .OrderBy(e => e.Code)
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize)
-            .Select(e => new CodeNameDto(e.Code, e.Name))
+            .Select(e => new CodeNameDto(e.Code, e.Name, e.Ativo))
             .ToListAsync(cancellationToken);
 
         var result = new PagedResult<CodeNameDto>(items, currentPage, pageSize, totalCount);
@@ -82,13 +91,17 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
         var exists = await _repository.GetByIdAsync(code, cancellationToken);
         if (exists is not null)
         {
-            return OperationResult<CodeNameDto>.Fail("conflict", "Code already exists.");
+            var message = exists.Ativo
+                ? "Code already exists."
+                : "Code already exists as an inactive record.";
+            return OperationResult<CodeNameDto>.Fail("conflict", message);
         }
 
         var entity = new TEntity
         {
             Code = code,
-            Name = name
+            Name = name,
+            Ativo = true
         };
 
         await _repository.AddAsync(entity, cancellationToken);
@@ -102,25 +115,33 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
             return OperationResult<CodeNameDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
         }
 
-        var result = new CodeNameDto(entity.Code, entity.Name);
+        var result = new CodeNameDto(entity.Code, entity.Name, entity.Ativo);
         return OperationResult<CodeNameDto>.Ok(result);
     }
 
     public async Task<OperationResult<CodeNameDto>> PatchAsync(string code, CodeNameUpdateDto dto, CancellationToken cancellationToken)
     {
         var entity = await _repository.GetByIdAsync(code, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<CodeNameDto>.Fail("not_found", "Record not found.");
         }
 
         var name = dto.Name?.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        if (string.IsNullOrWhiteSpace(name) && !dto.Ativo.HasValue)
         {
-            return OperationResult<CodeNameDto>.Fail("validation", "Name is required.");
+            return OperationResult<CodeNameDto>.Fail("validation", "At least one field must be provided.");
         }
 
-        entity.Name = name;
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            entity.Name = name;
+        }
+
+        if (dto.Ativo.HasValue)
+        {
+            entity.Ativo = dto.Ativo.Value;
+        }
 
         try
         {
@@ -131,19 +152,19 @@ public sealed class CodeNameService<TEntity> : ICodeNameService<TEntity>
             return OperationResult<CodeNameDto>.Fail("db_error", $"Database error: {ex.GetBaseException().Message}");
         }
 
-        var result = new CodeNameDto(entity.Code, entity.Name);
+        var result = new CodeNameDto(entity.Code, entity.Name, entity.Ativo);
         return OperationResult<CodeNameDto>.Ok(result);
     }
 
     public async Task<OperationResult<bool>> DeleteAsync(string code, CancellationToken cancellationToken)
     {
         var entity = await _repository.GetByIdAsync(code, cancellationToken);
-        if (entity is null)
+        if (entity is null || !entity.Ativo)
         {
             return OperationResult<bool>.Fail("not_found", "Record not found.");
         }
 
-        _repository.Remove(entity);
+        entity.Ativo = false;
 
         try
         {
