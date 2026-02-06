@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Api.Comercial.Models.Entities;
 
 namespace Api.Comercial.Data;
@@ -67,7 +67,7 @@ public partial class ApeironDbContext : DbContext
             entity.Property(e => e.Code).HasColumnName("StateCode").HasMaxLength(2).IsFixedLength();
             entity.Property(e => e.CountryCode).HasColumnName("CountryCode").HasMaxLength(2).IsFixedLength().IsRequired();
             entity.Property(e => e.Name).HasColumnName("StateName").HasMaxLength(80).IsRequired();
-            entity.Property(e => e.Ativo).HasColumnName("Ativo").IsRequired();
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
             entity.HasOne<Country>()
                 .WithMany()
                 .HasForeignKey(e => e.CountryCode)
@@ -89,7 +89,7 @@ public partial class ApeironDbContext : DbContext
         entity.HasKey(e => e.Id);
         entity.Property(e => e.Id).HasColumnName(idColumn).ValueGeneratedOnAdd();
         entity.Property(e => e.Name).HasColumnName(nameColumn).HasMaxLength(nameMaxLength).IsRequired();
-        entity.Property(e => e.Ativo).HasColumnName("Ativo").IsRequired();
+        entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
 
         if (uniqueNameIndex)
         {
@@ -111,6 +111,6 @@ public partial class ApeironDbContext : DbContext
         entity.HasKey(e => e.Code);
         entity.Property(e => e.Code).HasColumnName(codeColumn).HasMaxLength(codeLength).IsFixedLength();
         entity.Property(e => e.Name).HasColumnName(nameColumn).HasMaxLength(nameLength).IsRequired();
-        entity.Property(e => e.Ativo).HasColumnName("Ativo").IsRequired();
+        entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
     }
 }

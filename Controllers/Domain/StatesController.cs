@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Api.Comercial.Models.Dtos;
 using Api.Comercial.Models.Responses;
 using Api.Comercial.Services;
@@ -26,7 +26,7 @@ public sealed class StatesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] StateQueryDto query, CancellationToken cancellationToken)
     {
-        var normalized = query.Ativo.HasValue ? query : query with { Ativo = true };
+        var normalized = query.Active.HasValue ? query : query with { Active = true };
         var result = await _service.GetAllAsync(normalized, cancellationToken);
         return ToActionResult(result);
     }

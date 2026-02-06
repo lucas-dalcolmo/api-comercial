@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Api.Comercial.Models.Dtos;
 using Api.Comercial.Models.Entities;
 using Api.Comercial.Models.Responses;
@@ -27,7 +27,7 @@ public abstract class IntLookupControllerBase<TEntity> : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] LookupQueryDto query, CancellationToken cancellationToken)
     {
-        var normalized = query.Ativo.HasValue ? query : query with { Ativo = true };
+        var normalized = query.Active.HasValue ? query : query with { Active = true };
         var result = await _service.GetAllAsync(normalized, cancellationToken);
         return ToActionResult(result);
     }
@@ -110,7 +110,7 @@ public abstract class CodeNameControllerBase<TEntity> : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] CodeNameQueryDto query, CancellationToken cancellationToken)
     {
-        var normalized = query.Ativo.HasValue ? query : query with { Ativo = true };
+        var normalized = query.Active.HasValue ? query : query with { Active = true };
         var result = await _service.GetAllAsync(normalized, cancellationToken);
         return ToActionResult(result);
     }

@@ -1,17 +1,17 @@
-﻿namespace Api.Comercial.Models.Entities;
+namespace Api.Comercial.Models.Entities;
 
 public abstract class IntLookupEntity
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public bool Ativo { get; set; }
+    public bool Active { get; set; }
 }
 
 public abstract class CodeNameEntity
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public bool Ativo { get; set; }
+    public bool Active { get; set; }
 }
 
 public sealed class BloodType : IntLookupEntity { }
@@ -43,5 +43,5 @@ public sealed class State
     public string Code { get; set; } = string.Empty;
     public string CountryCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public bool Ativo { get; set; }
+    public bool Active { get; set; }
 }
