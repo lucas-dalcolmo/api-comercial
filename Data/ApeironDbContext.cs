@@ -44,6 +44,9 @@ public partial class ApeironDbContext : DbContext
     public DbSet<EmployeeBenefit> EmployeeBenefits => Set<EmployeeBenefit>();
     public DbSet<EmployeeContractBenefit> EmployeeContractBenefits => Set<EmployeeContractBenefit>();
     public DbSet<BenefitFormulaVariable> BenefitFormulaVariables => Set<BenefitFormulaVariable>();
+    public DbSet<Client> Clients => Set<Client>();
+    public DbSet<Proposal> Proposals => Set<Proposal>();
+    public DbSet<ProposalEmployee> ProposalEmployees => Set<ProposalEmployee>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -220,6 +223,72 @@ public partial class ApeironDbContext : DbContext
             entity.Property(e => e.SourceColumn).HasColumnName("SourceColumn").HasMaxLength(128).IsRequired();
             entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
             entity.HasIndex(e => e.VariableKey).IsUnique();
+        });
+
+        modelBuilder.Entity<Client>(entity =>
+        {
+            entity.ToTable("Client", "crm");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ClientId").ValueGeneratedNever();
+            entity.Property(e => e.Name).HasColumnName("ClientName").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.LegalName).HasColumnName("LegalName").HasMaxLength(300);
+            entity.Property(e => e.LogoUrl).HasColumnName("LogoUrl").HasMaxLength(500);
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+        });
+
+        modelBuilder.Entity<Proposal>(entity =>
+        {
+            entity.ToTable("Proposal", "crm");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ProposalId").ValueGeneratedOnAdd();
+            entity.Property(e => e.ClientId).HasColumnName("ClientId").IsRequired();
+            entity.Property(e => e.OpportunityId).HasColumnName("OpportunityId");
+            entity.Property(e => e.Title).HasColumnName("Title").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.ObjectiveHtml).HasColumnName("ObjectiveHtml").HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(e => e.GlobalMarginPercent).HasColumnName("GlobalMarginPercent").HasColumnType("decimal(9,4)").IsRequired();
+            entity.Property(e => e.Status).HasColumnName("Status").HasMaxLength(40).IsRequired();
+            entity.Property(e => e.TotalCost).HasColumnName("TotalCost").HasColumnType("decimal(18,2)").IsRequired();
+            entity.Property(e => e.TotalSellPrice).HasColumnName("TotalSellPrice").HasColumnType("decimal(18,2)").IsRequired();
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("CreatedAt").HasColumnType("datetime2").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("UpdatedAt").HasColumnType("datetime2").IsRequired();
+
+            entity.HasOne(e => e.Client)
+                .WithMany(c => c.Proposals)
+                .HasForeignKey(e => e.ClientId)
+                .HasConstraintName("FK_Proposal_Client");
+
+            entity.HasIndex(e => new { e.ClientId, e.Active });
+            entity.HasIndex(e => new { e.Status, e.Active });
+        });
+
+        modelBuilder.Entity<ProposalEmployee>(entity =>
+        {
+            entity.ToTable("ProposalEmployee", "crm");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ProposalEmployeeId").ValueGeneratedOnAdd();
+            entity.Property(e => e.ProposalId).HasColumnName("ProposalId").IsRequired();
+            entity.Property(e => e.EmployeeId).HasColumnName("EmployeeId").IsRequired();
+            entity.Property(e => e.CostSnapshot).HasColumnName("CostSnapshot").HasColumnType("decimal(18,2)").IsRequired();
+            entity.Property(e => e.MarginPercentApplied).HasColumnName("MarginPercentApplied").HasColumnType("decimal(9,4)").IsRequired();
+            entity.Property(e => e.SellPriceSnapshot).HasColumnName("SellPriceSnapshot").HasColumnType("decimal(18,2)").IsRequired();
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("CreatedAt").HasColumnType("datetime2").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("UpdatedAt").HasColumnType("datetime2").IsRequired();
+
+            entity.HasOne(e => e.Proposal)
+                .WithMany(p => p.Employees)
+                .HasForeignKey(e => e.ProposalId)
+                .HasConstraintName("FK_ProposalEmployee_Proposal");
+
+            entity.HasOne(e => e.Employee)
+                .WithMany()
+                .HasForeignKey(e => e.EmployeeId)
+                .HasConstraintName("FK_ProposalEmployee_Employee");
+
+            entity.HasIndex(e => new { e.ProposalId, e.EmployeeId, e.Active })
+                .IsUnique()
+                .HasFilter("[Active] = 1");
         });
     }
 

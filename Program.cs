@@ -75,6 +75,10 @@ builder.Services.AddScoped<IEmployeeContractBenefitService, EmployeeContractBene
 builder.Services.AddScoped<IBenefitFormulaEvaluator, BenefitFormulaEvaluator>();
 builder.Services.AddScoped<IBenefitFormulaVariableResolver, BenefitFormulaVariableResolver>();
 builder.Services.AddScoped<IBenefitFormulaVariableService, BenefitFormulaVariableService>();
+builder.Services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
+builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddScoped<IProposalService, ProposalService>();
+builder.Services.AddScoped<IProposalDocumentService, ProposalDocumentService>();
 
 var app = builder.Build();
 
@@ -82,6 +86,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();

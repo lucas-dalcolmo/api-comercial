@@ -76,6 +76,53 @@ Example (placeholders):
   - `api/domains/nationalities`
   - `api/domains/countries`
   - `api/domains/currencies`
+- HR:
+  - `api/hr/employers`
+  - `api/hr/employer-contracts`
+  - `api/hr/employers/{id}/documents`
+  - `api/hr/employers/{id}/benefits`
+- Commercial configuration:
+  - `api/configuration/commercial/score-category-weights`
+  - `api/configuration/commercial/score-value-weights`
+- CRM Proposals:
+  - `GET /api/crm/clients`
+  - `GET /api/crm/clients/{id}`
+  - `POST /api/crm/clients`
+  - `PATCH /api/crm/clients/{id}`
+  - `POST /api/crm/clients/{id}/logo` (`multipart/form-data`, field `file`, max 2MB, png/jpg/webp)
+  - `DELETE /api/crm/clients/{id}/logo`
+  - `GET /api/crm/proposals`
+  - `GET /api/crm/proposals/{id}`
+  - `POST /api/crm/proposals`
+  - `PATCH /api/crm/proposals/{id}`
+  - `DELETE /api/crm/proposals/{id}`
+  - `GET /api/crm/proposals/{id}/document/pdf` (official endpoint for proposal export)
+  - `GET /api/crm/proposals/{id}/employees`
+  - `POST /api/crm/proposals/{id}/employees`
+  - `DELETE /api/crm/proposals/{id}/employees/{proposalEmployeeId}`
+
+Detailed payload/response examples: `docs-crm-examples.md`.
+
+## Proposal PDF export
+- Official endpoint: `GET /api/crm/proposals/{id}/document/pdf`
+- Compatible verb also accepted: `POST /api/crm/proposals/{id}/document/pdf`
+- Official template source: `docs/templates/Modelo_proposta_comercial.docx`
+- Template placeholders:
+  - `[ClientName]` -> client name
+  - `[Subject]` -> proposal `objectiveHtml` (basic rich text mapped to DOCX)
+  - client logo replaces the image nearest to the first `[ClientName]` in the same document part
+- Logo sizing rules in PDF pipeline:
+  - rectangular logo: fit up to `5cm x 3cm` (practically `5cm x Y` with proportional height)
+  - square/square-like logo: fit up to `3cm x 3cm`
+  - keep aspect ratio (`contain`), no stretch/distortion
+  - preserve template text/paragraph alignment (only logo image geometry is changed)
+- Response:
+  - `200` with `application/pdf`
+  - `Content-Disposition: attachment; filename="proposta-{id}.pdf"`
+- Error mapping:
+  - `404` proposal not found
+  - `422` template/composition/conversion errors
+  - `500` unexpected errors
 
 ## Scaffold DB-first (future)
 When the database is available, run:
