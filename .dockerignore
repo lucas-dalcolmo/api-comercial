@@ -1,0 +1,22 @@
+# Build artifacts
+bin/
+obj/
+
+# User secrets
+**/secrets.json
+
+# IDE
+.vs/
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile.*
+docker-compose*.yml
+
+# Logs
+*.log

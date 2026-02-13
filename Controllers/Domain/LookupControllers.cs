@@ -124,6 +124,24 @@ public sealed class UrgencyLevelsController : IntLookupControllerBase<UrgencyLev
     public UrgencyLevelsController(IIntLookupService<UrgencyLevel> service) : base(service) { }
 }
 
+[Route("api/domains/document-types")]
+public sealed class DocumentTypesController : IntLookupControllerBase<DocumentType>
+{
+    public DocumentTypesController(IIntLookupService<DocumentType> service) : base(service) { }
+}
+
+[Route("api/domains/benefit-types")]
+public sealed class BenefitTypesController : IntLookupControllerBase<BenefitType>
+{
+    public BenefitTypesController(IIntLookupService<BenefitType> service) : base(service) { }
+}
+
+[Route("api/domains/nationalities")]
+public sealed class NationalitiesController : IntLookupControllerBase<Nationality>
+{
+    public NationalitiesController(IIntLookupService<Nationality> service) : base(service) { }
+}
+
 [Route("api/domains/countries")]
 public sealed class CountriesController : CodeNameControllerBase<Country>
 {

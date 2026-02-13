@@ -30,9 +30,20 @@ public partial class ApeironDbContext : DbContext
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
     public DbSet<TechnicalFit> TechnicalFits => Set<TechnicalFit>();
     public DbSet<UrgencyLevel> UrgencyLevels => Set<UrgencyLevel>();
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
+    public DbSet<BenefitType> BenefitTypes => Set<BenefitType>();
+    public DbSet<Nationality> Nationalities => Set<Nationality>();
     public DbSet<Country> Countries => Set<Country>();
     public DbSet<Currency> Currencies => Set<Currency>();
     public DbSet<State> States => Set<State>();
+    public DbSet<ScoreCategoryWeight> ScoreCategoryWeights => Set<ScoreCategoryWeight>();
+    public DbSet<ScoreValueWeight> ScoreValueWeights => Set<ScoreValueWeight>();
+    public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeContract> EmployeeContracts => Set<EmployeeContract>();
+    public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+    public DbSet<EmployeeBenefit> EmployeeBenefits => Set<EmployeeBenefit>();
+    public DbSet<EmployeeContractBenefit> EmployeeContractBenefits => Set<EmployeeContractBenefit>();
+    public DbSet<BenefitFormulaVariable> BenefitFormulaVariables => Set<BenefitFormulaVariable>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +67,9 @@ public partial class ApeironDbContext : DbContext
         ConfigureIntLookup<ServiceType>(modelBuilder, "dm_ServiceType", "ServiceTypeId", "ServiceTypeName", 80, uniqueNameIndex: true);
         ConfigureIntLookup<TechnicalFit>(modelBuilder, "dm_TechnicalFit", "TechnicalFitId", "TechnicalFitName", 60, uniqueNameIndex: true);
         ConfigureIntLookup<UrgencyLevel>(modelBuilder, "dm_UrgencyLevel", "UrgencyLevelId", "UrgencyLevelName", 40, uniqueNameIndex: true);
+        ConfigureIntLookup<DocumentType>(modelBuilder, "dm_DocumentType", "DocumentTypeId", "DocumentTypeName", 80, uniqueNameIndex: true);
+        ConfigureIntLookup<BenefitType>(modelBuilder, "dm_BenefitType", "BenefitTypeId", "BenefitTypeName", 80, uniqueNameIndex: true);
+        ConfigureIntLookup<Nationality>(modelBuilder, "dm_Nationality", "NationalityId", "NationalityName", 80, uniqueNameIndex: true);
 
         ConfigureCodeName<Country>(modelBuilder, "dm_Country", "CountryCode", 2, "CountryName", 80);
         ConfigureCodeName<Currency>(modelBuilder, "dm_Currency", "CurrencyCode", 3, "CurrencyName", 50);
@@ -72,6 +86,140 @@ public partial class ApeironDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.CountryCode)
                 .HasConstraintName("FK_State_Country");
+        });
+
+        modelBuilder.Entity<ScoreCategoryWeight>(entity =>
+        {
+            entity.ToTable("ScoreCategoryWeight", "crm");
+            entity.HasKey(e => e.CategoryName);
+            entity.Property(e => e.CategoryName).HasColumnName("CategoryName").HasMaxLength(60).IsRequired();
+            entity.Property(e => e.CategoryWeight).HasColumnName("CategoryWeight").HasColumnType("decimal(9,4)").IsRequired();
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+        });
+
+        modelBuilder.Entity<ScoreValueWeight>(entity =>
+        {
+            entity.ToTable("ScoreValueWeight", "crm");
+            entity.HasKey(e => new { e.CategoryName, e.ValueName });
+            entity.Property(e => e.CategoryName).HasColumnName("CategoryName").HasMaxLength(60).IsRequired();
+            entity.Property(e => e.ValueName).HasColumnName("ValueName").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ValueWeight).HasColumnName("ValueWeight").HasColumnType("decimal(9,4)").IsRequired();
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.HasOne<ScoreCategoryWeight>()
+                .WithMany()
+                .HasForeignKey(e => e.CategoryName)
+                .HasConstraintName("FK_ScoreValueWeight_Category");
+        });
+
+        modelBuilder.Entity<Employee>(entity =>
+        {
+            entity.ToTable("Employee", "hr");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("EmployeeId").ValueGeneratedOnAdd();
+            entity.Property(e => e.FullName).HasColumnName("FullName").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Cpf).HasColumnName("CPF").HasMaxLength(14);
+            entity.Property(e => e.GenderId).HasColumnName("GenderId");
+            entity.Property(e => e.BirthDate).HasColumnName("BirthDate").HasColumnType("date");
+            entity.Property(e => e.Nationality).HasColumnName("Nationality").HasMaxLength(80);
+            entity.Property(e => e.PlaceOfBirth).HasColumnName("PlaceOfBirth").HasMaxLength(120);
+            entity.Property(e => e.MaritalStatusId).HasColumnName("MaritalStatusId");
+            entity.Property(e => e.ChildrenCount).HasColumnName("ChildrenCount");
+            entity.Property(e => e.Phone).HasColumnName("Phone").HasMaxLength(30);
+            entity.Property(e => e.PersonalEmail).HasColumnName("PersonalEmail").HasMaxLength(255);
+            entity.Property(e => e.CorporateEmail).HasColumnName("CorporateEmail").HasMaxLength(255);
+            entity.Property(e => e.Address).HasColumnName("Address").HasMaxLength(300);
+            entity.Property(e => e.EducationLevelId).HasColumnName("EducationLevelId");
+            entity.Property(e => e.BloodTypeId).HasColumnName("BloodTypeId");
+            entity.Property(e => e.HireDate).HasColumnName("HireDate").HasColumnType("date");
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+        });
+
+        modelBuilder.Entity<EmployeeContract>(entity =>
+        {
+            entity.ToTable("EmployeeContract", "hr");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ContractId").ValueGeneratedOnAdd();
+            entity.Property(e => e.EmployeeId).HasColumnName("EmployeeId");
+            entity.Property(e => e.EmploymentTypeId).HasColumnName("EmploymentTypeId");
+            entity.Property(e => e.Cnpj).HasColumnName("CNPJ").HasMaxLength(18);
+            entity.Property(e => e.RoleId).HasColumnName("RoleId");
+            entity.Property(e => e.DepartmentId).HasColumnName("DepartmentId");
+            entity.Property(e => e.RegionId).HasColumnName("RegionId");
+            entity.Property(e => e.OfficeId).HasColumnName("OfficeId");
+            entity.Property(e => e.BaseSalaryUsd).HasColumnName("BaseSalaryUsd").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.StartDate).HasColumnName("StartDate").HasColumnType("date");
+            entity.Property(e => e.EndDate).HasColumnName("EndDate").HasColumnType("date");
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.HasOne(e => e.Employee)
+                .WithMany(e => e.Contracts)
+                .HasForeignKey(e => e.EmployeeId)
+                .HasConstraintName("FK_EmployeeContract_Employee");
+        });
+
+        modelBuilder.Entity<EmployeeContractBenefit>(entity =>
+        {
+            entity.ToTable("EmployeeContractBenefit", "hr");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("ContractBenefitId").ValueGeneratedOnAdd();
+            entity.Property(e => e.ContractId).HasColumnName("ContractId").IsRequired();
+            entity.Property(e => e.BenefitTypeId).HasColumnName("BenefitTypeId");
+            entity.Property(e => e.Value).HasColumnName("BenefitValue").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.IsFormula).HasColumnName("IsFormula").IsRequired();
+            entity.Property(e => e.Formula).HasColumnName("Formula").HasMaxLength(500);
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.HasOne(e => e.Contract)
+                .WithMany(e => e.Benefits)
+                .HasForeignKey(e => e.ContractId)
+                .HasConstraintName("FK_EmployeeContractBenefit_Contract");
+        });
+
+        modelBuilder.Entity<EmployeeDocument>(entity =>
+        {
+            entity.ToTable("EmployeeDocument", "hr");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("DocumentId").ValueGeneratedOnAdd();
+            entity.Property(e => e.EmployeeId).HasColumnName("EmployeeId").IsRequired();
+            entity.Property(e => e.DocumentTypeId).HasColumnName("DocumentTypeId");
+            entity.Property(e => e.DocumentNumber).HasColumnName("DocumentNumber").HasMaxLength(120);
+            entity.Property(e => e.CountryCode).HasColumnName("CountryCode").HasMaxLength(2).IsFixedLength();
+            entity.Property(e => e.IssueDate).HasColumnName("IssueDate").HasColumnType("date");
+            entity.Property(e => e.ExpiryDate).HasColumnName("ExpiryDate").HasColumnType("date");
+            entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(500);
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.HasOne(e => e.Employee)
+                .WithMany(e => e.Documents)
+                .HasForeignKey(e => e.EmployeeId)
+                .HasConstraintName("FK_EmployeeDocument_Employee");
+        });
+
+        modelBuilder.Entity<EmployeeBenefit>(entity =>
+        {
+            entity.ToTable("EmployeeBenefit", "hr");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("BenefitId").ValueGeneratedOnAdd();
+            entity.Property(e => e.EmployeeId).HasColumnName("EmployeeId").IsRequired();
+            entity.Property(e => e.BenefitTypeId).HasColumnName("BenefitTypeId");
+            entity.Property(e => e.StartDate).HasColumnName("StartDate").HasColumnType("date");
+            entity.Property(e => e.EndDate).HasColumnName("EndDate").HasColumnType("date");
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.HasOne(e => e.Employee)
+                .WithMany(e => e.Benefits)
+                .HasForeignKey(e => e.EmployeeId)
+                .HasConstraintName("FK_EmployeeBenefit_Employee");
+        });
+
+        modelBuilder.Entity<BenefitFormulaVariable>(entity =>
+        {
+            entity.ToTable("BenefitFormulaVariable", "hr");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("BenefitFormulaVariableId").ValueGeneratedOnAdd();
+            entity.Property(e => e.VariableKey).HasColumnName("VariableKey").HasMaxLength(150).IsRequired();
+            entity.Property(e => e.SourceScope).HasColumnName("SourceScope").HasMaxLength(40).IsRequired();
+            entity.Property(e => e.SourceSchema).HasColumnName("SourceSchema").HasMaxLength(30).IsRequired();
+            entity.Property(e => e.SourceTable).HasColumnName("SourceTable").HasMaxLength(128).IsRequired();
+            entity.Property(e => e.SourceColumn).HasColumnName("SourceColumn").HasMaxLength(128).IsRequired();
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.HasIndex(e => e.VariableKey).IsUnique();
         });
     }
 

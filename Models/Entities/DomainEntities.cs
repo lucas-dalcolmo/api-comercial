@@ -34,6 +34,9 @@ public sealed class Segment : IntLookupEntity { }
 public sealed class ServiceType : IntLookupEntity { }
 public sealed class TechnicalFit : IntLookupEntity { }
 public sealed class UrgencyLevel : IntLookupEntity { }
+public sealed class DocumentType : IntLookupEntity { }
+public sealed class BenefitType : IntLookupEntity { }
+public sealed class Nationality : IntLookupEntity { }
 
 public sealed class Country : CodeNameEntity { }
 public sealed class Currency : CodeNameEntity { }
@@ -43,5 +46,20 @@ public sealed class State
     public string Code { get; set; } = string.Empty;
     public string CountryCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public bool Active { get; set; }
+}
+
+public sealed class ScoreCategoryWeight
+{
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal CategoryWeight { get; set; }
+    public bool Active { get; set; }
+}
+
+public sealed class ScoreValueWeight
+{
+    public string CategoryName { get; set; } = string.Empty;
+    public string ValueName { get; set; } = string.Empty;
+    public decimal ValueWeight { get; set; }
     public bool Active { get; set; }
 }

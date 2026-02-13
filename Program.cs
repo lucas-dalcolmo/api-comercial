@@ -21,6 +21,12 @@ builder.Services.AddControllers();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "api-comercial", Version = "v1" });
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -59,6 +65,16 @@ builder.Services.AddScoped(typeof(IRepository<,>), typeof(EfRepository<,>));
 builder.Services.AddScoped(typeof(IIntLookupService<>), typeof(IntLookupService<>));
 builder.Services.AddScoped(typeof(ICodeNameService<>), typeof(CodeNameService<>));
 builder.Services.AddScoped<IStateService, StateService>();
+builder.Services.AddScoped<IScoreCategoryWeightService, ScoreCategoryWeightService>();
+builder.Services.AddScoped<IScoreValueWeightService, ScoreValueWeightService>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IEmployeeContractService, EmployeeContractService>();
+builder.Services.AddScoped<IEmployeeDocumentService, EmployeeDocumentService>();
+builder.Services.AddScoped<IEmployeeBenefitService, EmployeeBenefitService>();
+builder.Services.AddScoped<IEmployeeContractBenefitService, EmployeeContractBenefitService>();
+builder.Services.AddScoped<IBenefitFormulaEvaluator, BenefitFormulaEvaluator>();
+builder.Services.AddScoped<IBenefitFormulaVariableResolver, BenefitFormulaVariableResolver>();
+builder.Services.AddScoped<IBenefitFormulaVariableService, BenefitFormulaVariableService>();
 
 var app = builder.Build();
 

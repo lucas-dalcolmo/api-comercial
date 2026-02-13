@@ -1,0 +1,16 @@
+# Docker (local)
+
+## Subir
+1. Copie `.env.example` para `.env` e ajuste a senha.
+2. `docker compose up -d --build`
+3. API: `http://localhost:8080/swagger`
+
+## Atualizar com push na main (local)
+- Rode `scripts/deploy-local.ps1` para fazer `git pull` e rebuild.
+
+## Parar
+- `docker compose down`
+
+## Observacoes
+- O SQL Server usa a senha definida no `.env`.
+- O banco `Apeiron_ONE` deve existir. Se nao existir, crie no SQL.

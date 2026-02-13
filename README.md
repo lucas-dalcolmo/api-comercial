@@ -73,6 +73,7 @@ Example (placeholders):
   - `api/domains/service-types`
   - `api/domains/technical-fits`
   - `api/domains/urgency-levels`
+  - `api/domains/nationalities`
   - `api/domains/countries`
   - `api/domains/currencies`
 
