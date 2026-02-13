@@ -27,6 +27,7 @@ public sealed record ProposalCreateDto(
     int? OpportunityId,
     string Title,
     string? ObjectiveHtml,
+    decimal ProjectHours,
     decimal GlobalMarginPercent,
     string? Status);
 
@@ -35,6 +36,7 @@ public sealed record ProposalUpdateDto(
     int? OpportunityId,
     string? Title,
     string? ObjectiveHtml,
+    decimal? ProjectHours,
     decimal? GlobalMarginPercent,
     string? Status,
     bool? Active);
@@ -53,6 +55,7 @@ public sealed record ProposalDto(
     int? OpportunityId,
     string Title,
     string ObjectiveHtml,
+    decimal ProjectHours,
     decimal GlobalMarginPercent,
     string Status,
     decimal TotalCost,
@@ -65,12 +68,14 @@ public sealed record ProposalEmployeeAddDto(int EmployeeId);
 
 public sealed record ProposalEmployeeDto(
     int Id,
+    int ProposalEmployeeId,
     int ProposalId,
     int EmployeeId,
     string EmployeeName,
     decimal CostSnapshot,
     decimal MarginPercentApplied,
     decimal SellPriceSnapshot,
+    decimal HourlyValueSnapshot,
     bool Active,
     DateTime CreatedAt,
     DateTime UpdatedAt);

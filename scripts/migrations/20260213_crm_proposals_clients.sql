@@ -40,6 +40,7 @@ BEGIN
         OpportunityId INT NULL,
         Title NVARCHAR(200) NOT NULL,
         ObjectiveHtml NVARCHAR(MAX) NOT NULL,
+        ProjectHours DECIMAL(10,2) NOT NULL CONSTRAINT DF_Proposal_ProjectHours DEFAULT(220),
         GlobalMarginPercent DECIMAL(9,4) NOT NULL,
         Status NVARCHAR(40) NOT NULL,
         TotalCost DECIMAL(18,2) NOT NULL CONSTRAINT DF_Proposal_TotalCost DEFAULT(0),
@@ -50,6 +51,12 @@ BEGIN
         CONSTRAINT FK_Proposal_Client FOREIGN KEY (ClientId) REFERENCES crm.Client(ClientId)
     );
 END
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('crm.Proposal') AND name = 'ProjectHours'
+)
+    ALTER TABLE crm.Proposal ADD ProjectHours DECIMAL(10,2) NOT NULL CONSTRAINT DF_Proposal_ProjectHours DEFAULT(220);
 GO
 
 IF NOT EXISTS (
@@ -85,6 +92,7 @@ BEGIN
         CostSnapshot DECIMAL(18,2) NOT NULL,
         MarginPercentApplied DECIMAL(9,4) NOT NULL,
         SellPriceSnapshot DECIMAL(18,2) NOT NULL,
+        HourlyValueSnapshot DECIMAL(18,4) NOT NULL CONSTRAINT DF_ProposalEmployee_HourlyValueSnapshot DEFAULT(0),
         Active BIT NOT NULL CONSTRAINT DF_ProposalEmployee_Active DEFAULT(1),
         CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_ProposalEmployee_CreatedAt DEFAULT(SYSUTCDATETIME()),
         UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_ProposalEmployee_UpdatedAt DEFAULT(SYSUTCDATETIME()),
@@ -92,6 +100,12 @@ BEGIN
         CONSTRAINT FK_ProposalEmployee_Employee FOREIGN KEY (EmployeeId) REFERENCES hr.Employee(EmployeeId)
     );
 END
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('crm.ProposalEmployee') AND name = 'HourlyValueSnapshot'
+)
+    ALTER TABLE crm.ProposalEmployee ADD HourlyValueSnapshot DECIMAL(18,4) NOT NULL CONSTRAINT DF_ProposalEmployee_HourlyValueSnapshot DEFAULT(0);
 GO
 
 IF NOT EXISTS (
@@ -115,6 +129,37 @@ IF NOT EXISTS (
     CREATE UNIQUE INDEX UX_ProposalEmployee_Proposal_Employee_Active
     ON crm.ProposalEmployee(ProposalId, EmployeeId, Active)
     WHERE Active = 1;
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_ProposalEmployee_Proposal_Active'
+      AND object_id = OBJECT_ID('crm.ProposalEmployee')
+)
+    CREATE INDEX IX_ProposalEmployee_Proposal_Active ON crm.ProposalEmployee(ProposalId, Active);
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_ProposalEmployee_Employee'
+      AND object_id = OBJECT_ID('crm.ProposalEmployee')
+)
+    CREATE INDEX IX_ProposalEmployee_Employee ON crm.ProposalEmployee(EmployeeId);
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_Employee_FullName'
+      AND object_id = OBJECT_ID('hr.Employee')
+)
+    CREATE INDEX IX_Employee_FullName ON hr.Employee(FullName);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Proposal_ProjectHours_Positive')
+    ALTER TABLE crm.Proposal WITH CHECK ADD CONSTRAINT CK_Proposal_ProjectHours_Positive CHECK (ProjectHours > 0);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM crm.Client WHERE ClientName = 'Fortlev Demo Client')
@@ -172,6 +217,7 @@ BEGIN
         OpportunityId,
         Title,
         ObjectiveHtml,
+        ProjectHours,
         GlobalMarginPercent,
         Status,
         TotalCost,
@@ -186,6 +232,7 @@ BEGIN
         NULL,
         'Proposta Comercial Demo',
         '<p><strong>Objetivo:</strong> fornecer time dedicado com margem global de 20%.</p>',
+        220.00,
         20.0000,
         'Draft',
         0,
@@ -233,6 +280,7 @@ BEGIN
         CostSnapshot,
         MarginPercentApplied,
         SellPriceSnapshot,
+        HourlyValueSnapshot,
         Active,
         CreatedAt,
         UpdatedAt
@@ -244,6 +292,7 @@ BEGIN
         ISNULL(@AliceCost, 0),
         20.0000,
         ISNULL(@AliceCost, 0) * 1.20,
+        (ISNULL(@AliceCost, 0) * 1.20) / 220.0,
         1,
         SYSUTCDATETIME(),
         SYSUTCDATETIME()
@@ -260,6 +309,7 @@ BEGIN
         CostSnapshot,
         MarginPercentApplied,
         SellPriceSnapshot,
+        HourlyValueSnapshot,
         Active,
         CreatedAt,
         UpdatedAt
@@ -271,6 +321,7 @@ BEGIN
         ISNULL(@BrunoCost, 0),
         20.0000,
         ISNULL(@BrunoCost, 0) * 1.20,
+        (ISNULL(@BrunoCost, 0) * 1.20) / 220.0,
         1,
         SYSUTCDATETIME(),
         SYSUTCDATETIME()
@@ -295,4 +346,11 @@ BEGIN
     ) t
     WHERE p.ProposalId = @ProposalIdSeed;
 END
+GO
+
+UPDATE pe
+SET pe.HourlyValueSnapshot = ROUND(pe.SellPriceSnapshot / 220.0, 4)
+FROM crm.ProposalEmployee pe
+WHERE pe.Active = 1
+  AND (pe.HourlyValueSnapshot IS NULL OR pe.HourlyValueSnapshot = 0);
 GO

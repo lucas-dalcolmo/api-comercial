@@ -111,6 +111,8 @@ Detailed payload/response examples: `docs-crm-examples.md`.
   - `[ClientName]` -> client name
   - `[Subject]` -> proposal `objectiveHtml` (basic rich text mapped to DOCX)
   - client logo replaces the image nearest to the first `[ClientName]` in the same document part
+- TOC/Summary refresh:
+  - fields and table of contents are refreshed during DOCX->PDF conversion (with repagination) to keep summary/page numbers consistent after objective content changes
 - Logo sizing rules in PDF pipeline:
   - rectangular logo: fit up to `5cm x 3cm` (practically `5cm x Y` with proportional height)
   - square/square-like logo: fit up to `3cm x 3cm`
@@ -123,6 +125,37 @@ Detailed payload/response examples: `docs-crm-examples.md`.
   - `404` proposal not found
   - `422` template/composition/conversion errors
   - `500` unexpected errors
+
+## Proposal pricing fields
+- Proposal contract includes:
+  - `projectHours` (`> 0`, validation on create/update)
+  - `globalMarginPercent`
+  - `totalCost`
+  - `totalSellPrice`
+- Proposal employee contract includes:
+  - `id`
+  - `proposalEmployeeId`
+  - `proposalId`
+  - `employeeId`
+  - `employeeName`
+  - `costSnapshot`
+  - `marginPercentApplied`
+  - `sellPriceSnapshot`
+  - `hourlyValueSnapshot`
+  - `active`
+  - `createdAt`
+  - `updatedAt`
+- Hourly value rule:
+  - `hourlyValueSnapshot = sellPriceSnapshot / 220` (rounded to 4 decimals)
+
+## Proposal Employees stability/performance
+- Endpoint: `GET /api/crm/proposals/{id}/employees`
+- Query behavior:
+  - translated SQL ordering by employee name before DTO projection
+  - no client-side evaluation required for sorting
+  - no N+1 pattern in listing
+- Response behavior:
+  - `200` with empty list when proposal has no active linked employees
 
 ## Scaffold DB-first (future)
 When the database is available, run:

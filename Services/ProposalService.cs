@@ -22,6 +22,7 @@ public sealed class ProposalService : IProposalService
 {
     private const int TitleMaxLength = 200;
     private const int StatusMaxLength = 40;
+    private const decimal HourlyDivisor = 220m;
 
     private readonly ApeironDbContext _context;
     private readonly IHtmlSanitizerService _htmlSanitizer;
@@ -98,6 +99,7 @@ public sealed class ProposalService : IProposalService
                 p.OpportunityId,
                 p.Title,
                 p.ObjectiveHtml,
+                p.ProjectHours,
                 p.GlobalMarginPercent,
                 p.Status,
                 p.TotalCost,
@@ -128,6 +130,11 @@ public sealed class ProposalService : IProposalService
             return OperationResult<ProposalDto>.Fail("validation", "GlobalMarginPercent must be greater than or equal to 0.");
         }
 
+        if (dto.ProjectHours <= 0)
+        {
+            return OperationResult<ProposalDto>.Fail("validation", "ProjectHours must be greater than 0.");
+        }
+
         var client = await _context.Clients.FirstOrDefaultAsync(c => c.Id == dto.ClientId && c.Active, cancellationToken);
         if (client is null)
         {
@@ -152,6 +159,7 @@ public sealed class ProposalService : IProposalService
             OpportunityId = dto.OpportunityId,
             Title = title,
             ObjectiveHtml = _htmlSanitizer.Sanitize(dto.ObjectiveHtml),
+            ProjectHours = decimal.Round(dto.ProjectHours, 2, MidpointRounding.AwayFromZero),
             GlobalMarginPercent = decimal.Round(dto.GlobalMarginPercent, 4, MidpointRounding.AwayFromZero),
             Status = status,
             TotalCost = 0m,
@@ -191,6 +199,7 @@ public sealed class ProposalService : IProposalService
             && dto.OpportunityId is null
             && dto.Title is null
             && dto.ObjectiveHtml is null
+            && dto.ProjectHours is null
             && dto.GlobalMarginPercent is null
             && dto.Status is null
             && !dto.Active.HasValue)
@@ -235,6 +244,33 @@ public sealed class ProposalService : IProposalService
             entity.ObjectiveHtml = _htmlSanitizer.Sanitize(dto.ObjectiveHtml);
         }
 
+        if (dto.ProjectHours.HasValue)
+        {
+            if (ProposalStatus.IsClosed(entity.Status))
+            {
+                return OperationResult<ProposalDto>.Fail("domain_error", "Cannot change project hours for a closed proposal.");
+            }
+
+            if (dto.ProjectHours.Value <= 0)
+            {
+                return OperationResult<ProposalDto>.Fail("validation", "ProjectHours must be greater than 0.");
+            }
+
+            entity.ProjectHours = decimal.Round(dto.ProjectHours.Value, 2, MidpointRounding.AwayFromZero);
+
+            var activeItems = await _context.ProposalEmployees
+                .Where(pe => pe.ProposalId == entity.Id && pe.Active)
+                .ToListAsync(cancellationToken);
+
+            foreach (var item in activeItems)
+            {
+                var sell = RoundCurrency(item.CostSnapshot * (1m + (entity.GlobalMarginPercent / 100m)));
+                item.SellPriceSnapshot = sell;
+                item.HourlyValueSnapshot = RoundHourly(sell / HourlyDivisor);
+                item.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         if (dto.GlobalMarginPercent.HasValue)
         {
             if (ProposalStatus.IsClosed(entity.Status))
@@ -257,7 +293,9 @@ public sealed class ProposalService : IProposalService
             foreach (var item in activeItems)
             {
                 item.MarginPercentApplied = margin;
-                item.SellPriceSnapshot = RoundCurrency(item.CostSnapshot * (1m + (margin / 100m)));
+                var sell = RoundCurrency(item.CostSnapshot * (1m + (margin / 100m)));
+                item.SellPriceSnapshot = sell;
+                item.HourlyValueSnapshot = RoundHourly(sell / HourlyDivisor);
                 item.UpdatedAt = DateTime.UtcNow;
             }
         }
@@ -337,18 +375,25 @@ public sealed class ProposalService : IProposalService
                 _context.Employees.AsNoTracking(),
                 pe => pe.EmployeeId,
                 e => e.Id,
-                (pe, e) => new ProposalEmployeeDto(
-                    pe.Id,
-                    pe.ProposalId,
-                    pe.EmployeeId,
-                    e.FullName,
-                    pe.CostSnapshot,
-                    pe.MarginPercentApplied,
-                    pe.SellPriceSnapshot,
-                    pe.Active,
-                    pe.CreatedAt,
-                    pe.UpdatedAt))
+                (pe, e) => new
+                {
+                    ProposalEmployee = pe,
+                    EmployeeName = e.FullName
+                })
             .OrderBy(x => x.EmployeeName)
+            .Select(x => new ProposalEmployeeDto(
+                x.ProposalEmployee.Id,
+                x.ProposalEmployee.Id,
+                x.ProposalEmployee.ProposalId,
+                x.ProposalEmployee.EmployeeId,
+                x.EmployeeName,
+                x.ProposalEmployee.CostSnapshot,
+                x.ProposalEmployee.MarginPercentApplied,
+                x.ProposalEmployee.SellPriceSnapshot,
+                x.ProposalEmployee.HourlyValueSnapshot,
+                x.ProposalEmployee.Active,
+                x.ProposalEmployee.CreatedAt,
+                x.ProposalEmployee.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         return OperationResult<IReadOnlyList<ProposalEmployeeDto>>.Ok(items);
@@ -396,6 +441,7 @@ public sealed class ProposalService : IProposalService
         var margin = proposal.GlobalMarginPercent;
         var costSnapshot = costResult.Data;
         var sellSnapshot = RoundCurrency(costSnapshot * (1m + (margin / 100m)));
+        var hourlySnapshot = RoundHourly(sellSnapshot / HourlyDivisor);
         var now = DateTime.UtcNow;
 
         var item = new ProposalEmployee
@@ -405,6 +451,7 @@ public sealed class ProposalService : IProposalService
             CostSnapshot = costSnapshot,
             MarginPercentApplied = margin,
             SellPriceSnapshot = sellSnapshot,
+            HourlyValueSnapshot = hourlySnapshot,
             Active = true,
             CreatedAt = now,
             UpdatedAt = now
@@ -426,12 +473,14 @@ public sealed class ProposalService : IProposalService
 
         var dtoResult = new ProposalEmployeeDto(
             item.Id,
+            item.Id,
             item.ProposalId,
             item.EmployeeId,
             employee.FullName,
             item.CostSnapshot,
             item.MarginPercentApplied,
             item.SellPriceSnapshot,
+            item.HourlyValueSnapshot,
             item.Active,
             item.CreatedAt,
             item.UpdatedAt);
@@ -564,6 +613,7 @@ public sealed class ProposalService : IProposalService
             entity.OpportunityId,
             entity.Title,
             entity.ObjectiveHtml,
+            entity.ProjectHours,
             entity.GlobalMarginPercent,
             entity.Status,
             entity.TotalCost,
@@ -574,6 +624,9 @@ public sealed class ProposalService : IProposalService
 
     private static decimal RoundCurrency(decimal value)
         => decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+
+    private static decimal RoundHourly(decimal value)
+        => decimal.Round(value, 4, MidpointRounding.AwayFromZero);
 
     private static int NormalizePage(int? page)
         => page.HasValue && page.Value > 0 ? page.Value : 1;

@@ -135,6 +135,7 @@ public partial class ApeironDbContext : DbContext
             entity.Property(e => e.BloodTypeId).HasColumnName("BloodTypeId");
             entity.Property(e => e.HireDate).HasColumnName("HireDate").HasColumnType("date");
             entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.HasIndex(e => e.FullName).HasDatabaseName("IX_Employee_FullName");
         });
 
         modelBuilder.Entity<EmployeeContract>(entity =>
@@ -245,6 +246,7 @@ public partial class ApeironDbContext : DbContext
             entity.Property(e => e.OpportunityId).HasColumnName("OpportunityId");
             entity.Property(e => e.Title).HasColumnName("Title").HasMaxLength(200).IsRequired();
             entity.Property(e => e.ObjectiveHtml).HasColumnName("ObjectiveHtml").HasColumnType("nvarchar(max)").IsRequired();
+            entity.Property(e => e.ProjectHours).HasColumnName("ProjectHours").HasColumnType("decimal(10,2)").IsRequired();
             entity.Property(e => e.GlobalMarginPercent).HasColumnName("GlobalMarginPercent").HasColumnType("decimal(9,4)").IsRequired();
             entity.Property(e => e.Status).HasColumnName("Status").HasMaxLength(40).IsRequired();
             entity.Property(e => e.TotalCost).HasColumnName("TotalCost").HasColumnType("decimal(18,2)").IsRequired();
@@ -272,6 +274,7 @@ public partial class ApeironDbContext : DbContext
             entity.Property(e => e.CostSnapshot).HasColumnName("CostSnapshot").HasColumnType("decimal(18,2)").IsRequired();
             entity.Property(e => e.MarginPercentApplied).HasColumnName("MarginPercentApplied").HasColumnType("decimal(9,4)").IsRequired();
             entity.Property(e => e.SellPriceSnapshot).HasColumnName("SellPriceSnapshot").HasColumnType("decimal(18,2)").IsRequired();
+            entity.Property(e => e.HourlyValueSnapshot).HasColumnName("HourlyValueSnapshot").HasColumnType("decimal(18,4)").IsRequired();
             entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
             entity.Property(e => e.CreatedAt).HasColumnName("CreatedAt").HasColumnType("datetime2").IsRequired();
             entity.Property(e => e.UpdatedAt).HasColumnName("UpdatedAt").HasColumnType("datetime2").IsRequired();
@@ -289,6 +292,8 @@ public partial class ApeironDbContext : DbContext
             entity.HasIndex(e => new { e.ProposalId, e.EmployeeId, e.Active })
                 .IsUnique()
                 .HasFilter("[Active] = 1");
+            entity.HasIndex(e => new { e.ProposalId, e.Active }).HasDatabaseName("IX_ProposalEmployee_Proposal_Active");
+            entity.HasIndex(e => e.EmployeeId).HasDatabaseName("IX_ProposalEmployee_Employee");
         });
     }
 

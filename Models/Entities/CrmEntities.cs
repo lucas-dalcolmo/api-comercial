@@ -18,6 +18,7 @@ public sealed class Proposal
     public int? OpportunityId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string ObjectiveHtml { get; set; } = string.Empty;
+    public decimal ProjectHours { get; set; }
     public decimal GlobalMarginPercent { get; set; }
     public string Status { get; set; } = ProposalStatus.Draft;
     public decimal TotalCost { get; set; }
@@ -38,6 +39,7 @@ public sealed class ProposalEmployee
     public decimal CostSnapshot { get; set; }
     public decimal MarginPercentApplied { get; set; }
     public decimal SellPriceSnapshot { get; set; }
+    public decimal HourlyValueSnapshot { get; set; }
     public bool Active { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

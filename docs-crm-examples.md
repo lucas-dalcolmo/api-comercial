@@ -122,6 +122,7 @@ Response (200):
         "opportunityId": null,
         "title": "Proposta Comercial Demo",
         "objectiveHtml": "<p><strong>Objetivo:</strong> fornecer time dedicado com margem global de 20%.</p>",
+        "projectHours": 220.0,
         "globalMarginPercent": 20.0,
         "status": "Draft",
         "totalCost": 8300.0,
@@ -149,6 +150,7 @@ Request:
   "opportunityId": 123,
   "title": "Bodyshop Squad 2026",
   "objectiveHtml": "<p><u>Objetivo:</u> alocar squad dedicado para sustentacao.</p>",
+  "projectHours": 220,
   "globalMarginPercent": 20.0,
   "status": "Draft"
 }
@@ -159,6 +161,7 @@ Response (201): proposal DTO with totals initially zero.
 Request:
 ```json
 {
+  "projectHours": 200,
   "globalMarginPercent": 25.0,
   "status": "Sent",
   "objectiveHtml": "<p><strong>Objetivo revisado</strong></p>"
@@ -223,12 +226,14 @@ Response (200):
   "data": [
     {
       "id": 1,
+      "proposalEmployeeId": 1,
       "proposalId": 1,
       "employeeId": 10,
       "employeeName": "Alice Demo",
       "costSnapshot": 3300.0,
       "marginPercentApplied": 20.0,
       "sellPriceSnapshot": 3960.0,
+      "hourlyValueSnapshot": 18.0000,
       "active": true,
       "createdAt": "2026-02-13T19:35:00Z",
       "updatedAt": "2026-02-13T19:35:00Z"

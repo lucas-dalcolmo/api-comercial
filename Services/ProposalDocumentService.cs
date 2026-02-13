@@ -180,8 +180,33 @@ public sealed class ProposalDocumentService : IProposalDocumentService
             return subjectReplace;
         }
 
+        EnsureUpdateFieldsOnOpen(document);
         document.MainDocumentPart.Document.Save();
         return OperationResult<bool>.Ok(true);
+    }
+
+    private static void EnsureUpdateFieldsOnOpen(WordprocessingDocument document)
+    {
+        var settingsPart = document.MainDocumentPart?.DocumentSettingsPart
+            ?? document.MainDocumentPart?.AddNewPart<DocumentSettingsPart>();
+        if (settingsPart is null)
+        {
+            return;
+        }
+
+        settingsPart.Settings ??= new Settings();
+
+        var update = settingsPart.Settings.Elements<UpdateFieldsOnOpen>().FirstOrDefault();
+        if (update is null)
+        {
+            settingsPart.Settings.AppendChild(new UpdateFieldsOnOpen { Val = true });
+        }
+        else
+        {
+            update.Val = true;
+        }
+
+        settingsPart.Settings.Save();
     }
 
     private static OperationResult<bool> ReplaceClientNamePlaceholders(WordprocessingDocument document, string clientName)
@@ -778,15 +803,16 @@ public sealed class ProposalDocumentService : IProposalDocumentService
 
     private async Task<OperationResult<bool>> ConvertDocxToPdfAsync(string inputDocxPath, string outputDir, CancellationToken cancellationToken)
     {
+        // Prefer Word automation when available to guarantee TOC/field refresh before PDF.
+        if (ResolveWordPath() is not null)
+        {
+            return await ConvertWithWordAutomationAsync(inputDocxPath, outputDir, cancellationToken);
+        }
+
         var sofficePath = ResolveSofficePath();
         if (!string.IsNullOrWhiteSpace(sofficePath))
         {
             return await ConvertWithLibreOfficeAsync(sofficePath, inputDocxPath, outputDir, cancellationToken);
-        }
-
-        if (ResolveWordPath() is not null)
-        {
-            return await ConvertWithWordAutomationAsync(inputDocxPath, outputDir, cancellationToken);
         }
 
         return OperationResult<bool>.Fail("domain_error", "No PDF converter found. Install LibreOffice or Microsoft Word.");
@@ -849,6 +875,11 @@ public sealed class ProposalDocumentService : IProposalDocumentService
             "$word = New-Object -ComObject Word.Application",
             "$word.Visible = $false",
             "$doc = $word.Documents.Open('" + escapedInput + "', $false, $true)",
+            "$doc.Repaginate()",
+            "$doc.TablesOfContents | ForEach-Object { $_.Update() }",
+            "$null = $doc.Fields.Update()",
+            "$range = $doc.StoryRanges",
+            "while ($range -ne $null) { $null = $range.Fields.Update(); $range = $range.NextStoryRange }",
             "$doc.SaveAs([ref]'" + escapedOutput + "', [ref]17)",
             "$doc.Close()",
             "$word.Quit()"
