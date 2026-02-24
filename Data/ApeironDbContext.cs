@@ -45,6 +45,7 @@ public partial class ApeironDbContext : DbContext
     public DbSet<EmployeeContractBenefit> EmployeeContractBenefits => Set<EmployeeContractBenefit>();
     public DbSet<BenefitFormulaVariable> BenefitFormulaVariables => Set<BenefitFormulaVariable>();
     public DbSet<Client> Clients => Set<Client>();
+    public DbSet<Opportunity> Opportunities => Set<Opportunity>();
     public DbSet<Proposal> Proposals => Set<Proposal>();
     public DbSet<ProposalEmployee> ProposalEmployees => Set<ProposalEmployee>();
 
@@ -237,6 +238,125 @@ public partial class ApeironDbContext : DbContext
             entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
         });
 
+        modelBuilder.Entity<Opportunity>(entity =>
+        {
+            entity.ToTable("Opportunity", "crm");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("OpportunityId").ValueGeneratedOnAdd();
+            entity.Property(e => e.ClientId).HasColumnName("ClientId").IsRequired();
+            entity.Property(e => e.Name).HasColumnName("OpportunityName").HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasColumnName("Description").HasMaxLength(2000);
+            entity.Property(e => e.DateCreation).HasColumnName("DateCreation").HasColumnType("date");
+            entity.Property(e => e.Week).HasColumnName("Week");
+            entity.Property(e => e.LeadSourceId).HasColumnName("LeadSourceId");
+            entity.Property(e => e.CompanySizeId).HasColumnName("CompanySizeId");
+            entity.Property(e => e.ContactCompany).HasColumnName("ContactCompany").HasMaxLength(200);
+            entity.Property(e => e.TaxId).HasColumnName("TaxId").HasMaxLength(30);
+            entity.Property(e => e.SegmentId).HasColumnName("SegmentId");
+            entity.Property(e => e.CountryCode).HasColumnName("CountryCode").HasMaxLength(2).IsFixedLength();
+            entity.Property(e => e.StateCode).HasColumnName("StateCode").HasMaxLength(2).IsFixedLength();
+            entity.Property(e => e.City).HasColumnName("City").HasMaxLength(120);
+            entity.Property(e => e.Seller).HasColumnName("Seller").HasMaxLength(120);
+            entity.Property(e => e.OfficeId).HasColumnName("OfficeId");
+            entity.Property(e => e.FunnelStageId).HasColumnName("FunnelStageId");
+            entity.Property(e => e.StatusId).HasColumnName("StatusId");
+            entity.Property(e => e.ReasonLost).HasColumnName("ReasonLost").HasMaxLength(500);
+            entity.Property(e => e.DateActualStage).HasColumnName("DateActualStage").HasColumnType("date");
+            entity.Property(e => e.DaysOnStage).HasColumnName("DaysOnStage");
+            entity.Property(e => e.DateNextAction).HasColumnName("DateNextAction").HasColumnType("date");
+            entity.Property(e => e.Notes).HasColumnName("Notes").HasMaxLength(1000);
+            entity.Property(e => e.RelationshipLevelId).HasColumnName("RelationshipLevelId");
+            entity.Property(e => e.UrgencyLevelId).HasColumnName("UrgencyLevelId");
+            entity.Property(e => e.TechnicalFitId).HasColumnName("TechnicalFitId");
+            entity.Property(e => e.BudgetLevelId).HasColumnName("BudgetLevelId");
+            entity.Property(e => e.ProbabilityPercent).HasColumnName("ProbabilityPercent").HasColumnType("decimal(9,4)");
+            entity.Property(e => e.ServiceTypeId).HasColumnName("ServiceTypeId");
+            entity.Property(e => e.CurrencyCode).HasColumnName("CurrencyCode").HasMaxLength(3).IsFixedLength();
+            entity.Property(e => e.ForecastDate).HasColumnName("ForecastDate").HasColumnType("date");
+            entity.Property(e => e.EstimatedValue).HasColumnName("EstimatedValue").HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Active).HasColumnName("Active").IsRequired();
+            entity.Property(e => e.CreatedAt).HasColumnName("CreatedAt").HasColumnType("datetime2").IsRequired();
+            entity.Property(e => e.UpdatedAt).HasColumnName("UpdatedAt").HasColumnType("datetime2").IsRequired();
+
+            entity.HasOne(e => e.Client)
+                .WithMany(c => c.Opportunities)
+                .HasForeignKey(e => e.ClientId)
+                .HasConstraintName("FK_Opportunity_Client");
+
+            entity.HasOne(e => e.Status)
+                .WithMany()
+                .HasForeignKey(e => e.StatusId)
+                .HasConstraintName("FK_Opportunity_Status");
+
+            entity.HasOne(e => e.LeadSource)
+                .WithMany()
+                .HasForeignKey(e => e.LeadSourceId)
+                .HasConstraintName("FK_Opportunity_LeadSource");
+
+            entity.HasOne(e => e.CompanySize)
+                .WithMany()
+                .HasForeignKey(e => e.CompanySizeId)
+                .HasConstraintName("FK_Opportunity_CompanySize");
+
+            entity.HasOne(e => e.Segment)
+                .WithMany()
+                .HasForeignKey(e => e.SegmentId)
+                .HasConstraintName("FK_Opportunity_Segment");
+
+            entity.HasOne(e => e.Country)
+                .WithMany()
+                .HasForeignKey(e => e.CountryCode)
+                .HasConstraintName("FK_Opportunity_Country");
+
+            entity.HasOne(e => e.State)
+                .WithMany()
+                .HasForeignKey(e => e.StateCode)
+                .HasConstraintName("FK_Opportunity_State");
+
+            entity.HasOne(e => e.Office)
+                .WithMany()
+                .HasForeignKey(e => e.OfficeId)
+                .HasConstraintName("FK_Opportunity_Office");
+
+            entity.HasOne(e => e.FunnelStage)
+                .WithMany()
+                .HasForeignKey(e => e.FunnelStageId)
+                .HasConstraintName("FK_Opportunity_FunnelStage");
+
+            entity.HasOne(e => e.RelationshipLevel)
+                .WithMany()
+                .HasForeignKey(e => e.RelationshipLevelId)
+                .HasConstraintName("FK_Opportunity_RelationshipLevel");
+
+            entity.HasOne(e => e.UrgencyLevel)
+                .WithMany()
+                .HasForeignKey(e => e.UrgencyLevelId)
+                .HasConstraintName("FK_Opportunity_UrgencyLevel");
+
+            entity.HasOne(e => e.TechnicalFit)
+                .WithMany()
+                .HasForeignKey(e => e.TechnicalFitId)
+                .HasConstraintName("FK_Opportunity_TechnicalFit");
+
+            entity.HasOne(e => e.BudgetLevel)
+                .WithMany()
+                .HasForeignKey(e => e.BudgetLevelId)
+                .HasConstraintName("FK_Opportunity_BudgetLevel");
+
+            entity.HasOne(e => e.ServiceType)
+                .WithMany()
+                .HasForeignKey(e => e.ServiceTypeId)
+                .HasConstraintName("FK_Opportunity_ServiceType");
+
+            entity.HasOne(e => e.Currency)
+                .WithMany()
+                .HasForeignKey(e => e.CurrencyCode)
+                .HasConstraintName("FK_Opportunity_Currency");
+
+            entity.HasIndex(e => new { e.ClientId, e.Active }).HasDatabaseName("IX_Opportunity_Client_Active");
+            entity.HasIndex(e => new { e.StatusId, e.Active }).HasDatabaseName("IX_Opportunity_Status_Active");
+        });
+
         modelBuilder.Entity<Proposal>(entity =>
         {
             entity.ToTable("Proposal", "crm");
@@ -260,8 +380,14 @@ public partial class ApeironDbContext : DbContext
                 .HasForeignKey(e => e.ClientId)
                 .HasConstraintName("FK_Proposal_Client");
 
+            entity.HasOne(e => e.Opportunity)
+                .WithMany(o => o.Proposals)
+                .HasForeignKey(e => e.OpportunityId)
+                .HasConstraintName("FK_Proposal_Opportunity");
+
             entity.HasIndex(e => new { e.ClientId, e.Active });
             entity.HasIndex(e => new { e.Status, e.Active });
+            entity.HasIndex(e => new { e.OpportunityId, e.Active }).HasDatabaseName("IX_Proposal_Opportunity_Active");
         });
 
         modelBuilder.Entity<ProposalEmployee>(entity =>

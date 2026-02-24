@@ -135,10 +135,36 @@ public sealed class ProposalService : IProposalService
             return OperationResult<ProposalDto>.Fail("validation", "ProjectHours must be greater than 0.");
         }
 
+        if (!dto.OpportunityId.HasValue || dto.OpportunityId.Value <= 0)
+        {
+            return OperationResult<ProposalDto>.Fail("validation", "OpportunityId is required.");
+        }
+
         var client = await _context.Clients.FirstOrDefaultAsync(c => c.Id == dto.ClientId && c.Active, cancellationToken);
         if (client is null)
         {
             return OperationResult<ProposalDto>.Fail("not_found", "Client not found.");
+        }
+
+        var opportunity = await _context.Opportunities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == dto.OpportunityId.Value && o.Active, cancellationToken);
+        if (opportunity is null)
+        {
+            return OperationResult<ProposalDto>.Fail("not_found", "Opportunity not found.");
+        }
+
+        if (opportunity.ClientId != dto.ClientId)
+        {
+            return OperationResult<ProposalDto>.Fail("domain_error", "Opportunity does not belong to the selected client.");
+        }
+
+        var duplicateOpportunity = await _context.Proposals
+            .AsNoTracking()
+            .AnyAsync(p => p.OpportunityId == dto.OpportunityId.Value && p.Active, cancellationToken);
+        if (duplicateOpportunity)
+        {
+            return OperationResult<ProposalDto>.Fail("conflict", "This opportunity already has an active proposal.");
         }
 
         var status = NormalizeStatus(dto.Status);
@@ -209,6 +235,11 @@ public sealed class ProposalService : IProposalService
 
         if (dto.ClientId.HasValue)
         {
+            if (entity.OpportunityId.HasValue && entity.ClientId != dto.ClientId.Value)
+            {
+                return OperationResult<ProposalDto>.Fail("domain_error", "Cannot change client for an opportunity-linked proposal.");
+            }
+
             var client = await _context.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == dto.ClientId.Value && c.Active, cancellationToken);
             if (client is null)
             {
@@ -220,7 +251,42 @@ public sealed class ProposalService : IProposalService
 
         if (dto.OpportunityId.HasValue)
         {
-            entity.OpportunityId = dto.OpportunityId.Value;
+            if (dto.OpportunityId.Value <= 0)
+            {
+                return OperationResult<ProposalDto>.Fail("validation", "OpportunityId must be greater than 0.");
+            }
+
+            if (entity.OpportunityId.HasValue && entity.OpportunityId.Value != dto.OpportunityId.Value)
+            {
+                return OperationResult<ProposalDto>.Fail("domain_error", "OpportunityId cannot be changed after proposal creation.");
+            }
+
+            var opportunity = await _context.Opportunities
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.Id == dto.OpportunityId.Value && o.Active, cancellationToken);
+            if (opportunity is null)
+            {
+                return OperationResult<ProposalDto>.Fail("not_found", "Opportunity not found.");
+            }
+
+            var targetClientId = dto.ClientId ?? entity.ClientId;
+            if (opportunity.ClientId != targetClientId)
+            {
+                return OperationResult<ProposalDto>.Fail("domain_error", "Opportunity does not belong to the selected client.");
+            }
+
+            if (!entity.OpportunityId.HasValue)
+            {
+                var duplicateOpportunity = await _context.Proposals
+                    .AsNoTracking()
+                    .AnyAsync(p => p.Id != entity.Id && p.OpportunityId == dto.OpportunityId.Value && p.Active, cancellationToken);
+                if (duplicateOpportunity)
+                {
+                    return OperationResult<ProposalDto>.Fail("conflict", "This opportunity already has an active proposal.");
+                }
+
+                entity.OpportunityId = dto.OpportunityId.Value;
+            }
         }
 
         if (dto.Title is not null)

@@ -33,3 +33,6 @@ publish/
 # Environment files
 .env
 .env.*
+
+# Local upload storage
+wwwroot/uploads/

@@ -6,12 +6,12 @@ using Api.Comercial.Services;
 namespace Api.Comercial.Controllers.Crm;
 
 [ApiController]
-[Route("api/crm/clients")]
-public sealed class ClientsController : ControllerBase
+[Route("api/crm/opportunities")]
+public sealed class OpportunitiesController : ControllerBase
 {
-    private readonly IClientService _service;
+    private readonly IOpportunityService _service;
 
-    public ClientsController(IClientService service)
+    public OpportunitiesController(IOpportunityService service)
     {
         _service = service;
     }
@@ -24,7 +24,7 @@ public sealed class ClientsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] ClientQueryDto query, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAll([FromQuery] OpportunityQueryDto query, CancellationToken cancellationToken)
     {
         var normalized = query.Active.HasValue ? query : query with { Active = true };
         var result = await _service.GetAllAsync(normalized, cancellationToken);
@@ -32,31 +32,16 @@ public sealed class ClientsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ClientCreateDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] OpportunityCreateDto dto, CancellationToken cancellationToken)
     {
         var result = await _service.CreateAsync(dto, cancellationToken);
         return ToActionResult(result, createdId: result.Data?.Id);
     }
 
     [HttpPatch("{id:int}")]
-    public async Task<IActionResult> Patch([FromRoute] int id, [FromBody] ClientUpdateDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Patch([FromRoute] int id, [FromBody] OpportunityUpdateDto dto, CancellationToken cancellationToken)
     {
         var result = await _service.PatchAsync(id, dto, cancellationToken);
-        return ToActionResult(result);
-    }
-
-    [HttpPost("{id:int}/logo")]
-    [Consumes("multipart/form-data")]
-    public async Task<IActionResult> UploadLogo([FromRoute] int id, [FromForm] ClientLogoUploadDto dto, CancellationToken cancellationToken)
-    {
-        var result = await _service.UploadLogoAsync(id, dto?.File, cancellationToken);
-        return ToActionResult(result);
-    }
-
-    [HttpDelete("{id:int}/logo")]
-    public async Task<IActionResult> RemoveLogo([FromRoute] int id, CancellationToken cancellationToken)
-    {
-        var result = await _service.RemoveLogoAsync(id, cancellationToken);
         return ToActionResult(result);
     }
 

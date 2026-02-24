@@ -77,8 +77,10 @@ builder.Services.AddScoped<IBenefitFormulaVariableResolver, BenefitFormulaVariab
 builder.Services.AddScoped<IBenefitFormulaVariableService, BenefitFormulaVariableService>();
 builder.Services.AddScoped<IHtmlSanitizerService, HtmlSanitizerService>();
 builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddScoped<IOpportunityService, OpportunityService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
 builder.Services.AddScoped<IProposalDocumentService, ProposalDocumentService>();
+builder.Services.AddScoped<ICommercialDashboardService, CommercialDashboardService>();
 
 var app = builder.Build();
 

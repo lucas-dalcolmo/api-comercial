@@ -10,6 +10,7 @@ using HtmlAgilityPack;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
 using A = DocumentFormat.OpenXml.Drawing;
+using System.Globalization;
 
 namespace Api.Comercial.Services;
 
@@ -54,6 +55,8 @@ public sealed class ProposalDocumentService : IProposalDocumentService
             return OperationResult<ProposalPdfResult>.Fail("domain_error", "Client logo is required to export proposal PDF.");
         }
 
+        var hhBlocks = await BuildHourlyBlocksAsync(proposal.Id, cancellationToken);
+
         var templatePath = ResolveTemplatePath();
         if (!File.Exists(templatePath))
         {
@@ -76,7 +79,7 @@ public sealed class ProposalDocumentService : IProposalDocumentService
         {
             File.Copy(templatePath, workDocx, overwrite: true);
 
-            var compose = ComposeDocument(workDocx, proposal, logoResult.Data!);
+            var compose = ComposeDocument(workDocx, proposal, logoResult.Data!, hhBlocks);
             if (!compose.Success)
             {
                 return OperationResult<ProposalPdfResult>.Fail(compose.ErrorCode!, compose.ErrorMessage!);
@@ -154,7 +157,7 @@ public sealed class ProposalDocumentService : IProposalDocumentService
             : OperationResult<byte[]>.Ok(data);
     }
 
-    private static OperationResult<bool> ComposeDocument(string docxPath, Proposal proposal, byte[] logoBytes)
+    private static OperationResult<bool> ComposeDocument(string docxPath, Proposal proposal, byte[] logoBytes, IReadOnlyList<HhRoleBlock> hhBlocks)
     {
         using var document = WordprocessingDocument.Open(docxPath, true);
         if (document.MainDocumentPart?.Document is null)
@@ -180,9 +183,240 @@ public sealed class ProposalDocumentService : IProposalDocumentService
             return subjectReplace;
         }
 
+        var hhReplace = ReplaceHourlyPlaceholder(document, hhBlocks);
+        if (!hhReplace.Success)
+        {
+            return hhReplace;
+        }
+
         EnsureUpdateFieldsOnOpen(document);
         document.MainDocumentPart.Document.Save();
         return OperationResult<bool>.Ok(true);
+    }
+
+    private sealed record HhRoleBlock(int EmployeesCount, string RoleName, decimal BaseHourlyValue);
+
+    private async Task<IReadOnlyList<HhRoleBlock>> BuildHourlyBlocksAsync(int proposalId, CancellationToken cancellationToken)
+    {
+        var proposalEmployees = await _context.ProposalEmployees
+            .AsNoTracking()
+            .Where(pe => pe.ProposalId == proposalId && pe.Active)
+            .Select(pe => new { pe.EmployeeId, pe.HourlyValueSnapshot })
+            .ToListAsync(cancellationToken);
+
+        if (proposalEmployees.Count == 0)
+        {
+            return Array.Empty<HhRoleBlock>();
+        }
+
+        var employeeIds = proposalEmployees.Select(x => x.EmployeeId).Distinct().ToArray();
+
+        var contracts = await _context.EmployeeContracts
+            .AsNoTracking()
+            .Where(c => c.Active && c.EmployeeId.HasValue && employeeIds.Contains(c.EmployeeId.Value))
+            .OrderByDescending(c => c.StartDate)
+            .ThenByDescending(c => c.Id)
+            .Select(c => new { EmployeeId = c.EmployeeId!.Value, c.RoleId, c.StartDate, c.Id })
+            .ToListAsync(cancellationToken);
+
+        var latestByEmployee = contracts
+            .GroupBy(c => c.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var roleIds = latestByEmployee.Values
+            .Where(c => c.RoleId.HasValue)
+            .Select(c => c.RoleId!.Value)
+            .Distinct()
+            .ToArray();
+
+        var roleNames = await _context.Roles
+            .AsNoTracking()
+            .Where(r => roleIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id, r => r.Name, cancellationToken);
+
+        var byRole = proposalEmployees
+            .Select(pe =>
+            {
+                latestByEmployee.TryGetValue(pe.EmployeeId, out var contract);
+                var roleName = contract?.RoleId.HasValue == true && roleNames.TryGetValue(contract.RoleId.Value, out var rName)
+                    ? rName
+                    : "Sem função";
+                return new { roleName, pe.HourlyValueSnapshot };
+            })
+            .GroupBy(x => x.roleName, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new HhRoleBlock(
+                g.Count(),
+                g.Key,
+                g.Max(x => x.HourlyValueSnapshot)))
+            .OrderBy(x => x.RoleName)
+            .ToList();
+
+        return byRole;
+    }
+
+    private static OperationResult<bool> ReplaceHourlyPlaceholder(WordprocessingDocument document, IReadOnlyList<HhRoleBlock> hhBlocks)
+    {
+        var body = document.MainDocumentPart!.Document.Body;
+        if (body is null)
+        {
+            return OperationResult<bool>.Fail("domain_error", "Template is invalid: missing body.");
+        }
+
+        // Token may be split across runs in Word, so prefer paragraph-level match first.
+        var ownerParagraph = document.MainDocumentPart.Document.Descendants<Paragraph>()
+            .FirstOrDefault(p => (p.InnerText ?? string.Empty).Contains("[HH]", StringComparison.OrdinalIgnoreCase));
+
+        var hhToken = ownerParagraph is null
+            ? document.MainDocumentPart.Document.Descendants<Text>()
+                .FirstOrDefault(t => (t.Text ?? string.Empty).Contains("[HH]", StringComparison.OrdinalIgnoreCase))
+            : ownerParagraph.Descendants<Text>()
+                .FirstOrDefault(t => (t.Text ?? string.Empty).Contains("[HH]", StringComparison.OrdinalIgnoreCase));
+
+        if (ownerParagraph is null && hhToken is null)
+        {
+            return OperationResult<bool>.Fail("domain_error", "Template is invalid: token [HH] was not found.");
+        }
+
+        if (ownerParagraph is null && hhToken is not null)
+        {
+            ownerParagraph = hhToken.Ancestors<Paragraph>().FirstOrDefault();
+        }
+        if (ownerParagraph is null)
+        {
+            return OperationResult<bool>.Fail("domain_error", "Template is invalid: [HH] must be inside a paragraph.");
+        }
+
+        var paragraphs = BuildHhParagraphs(hhBlocks, ownerParagraph);
+        if (paragraphs.Count == 0)
+        {
+            paragraphs.Add(new Paragraph(new Run(new Text("Sem profissionais vinculados à proposta."))));
+        }
+
+        if (string.Equals((ownerParagraph.InnerText ?? string.Empty).Trim(), "[HH]", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenXmlElement current = ownerParagraph;
+            foreach (var paragraph in paragraphs)
+            {
+                current = body.InsertAfter(paragraph, current);
+            }
+
+            ownerParagraph.Remove();
+        }
+        else
+        {
+            var replacementText = string.Join(Environment.NewLine, paragraphs.Select(p => p.InnerText));
+            if (hhToken is not null)
+            {
+                hhToken.Text = hhToken.Text.Replace("[HH]", replacementText, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                var originalText = ownerParagraph.InnerText ?? string.Empty;
+                var updatedText = originalText.Replace("[HH]", replacementText, StringComparison.OrdinalIgnoreCase);
+                ownerParagraph.RemoveAllChildren<Run>();
+                ownerParagraph.AppendChild(new Run(new Text(updatedText) { Space = SpaceProcessingModeValues.Preserve }));
+            }
+        }
+
+        return OperationResult<bool>.Ok(true);
+    }
+
+    private static List<Paragraph> BuildHhParagraphs(IReadOnlyList<HhRoleBlock> hhBlocks, Paragraph templateParagraph)
+    {
+        var result = new List<Paragraph>();
+        var culture = new CultureInfo("pt-BR");
+        var templateParagraphProps = templateParagraph.ParagraphProperties is null
+            ? null
+            : (ParagraphProperties)templateParagraph.ParagraphProperties.CloneNode(true);
+
+        var templateRunProps = templateParagraph.Descendants<RunProperties>().FirstOrDefault() is RunProperties rp
+            ? (RunProperties)rp.CloneNode(true)
+            : BuildCalibri12RunProperties();
+
+        var moneyBlueBold = BuildMoneyBlueBoldRunProperties(templateRunProps);
+
+        foreach (var block in hhBlocks)
+        {
+            var countText = block.EmployeesCount.ToString("00", CultureInfo.InvariantCulture);
+            var roleTitle = $"{countText} - {block.RoleName}";
+
+            var baseValue = block.BaseHourlyValue;
+            var overtimeValue = decimal.Round(baseValue * 1.5m, 2, MidpointRounding.AwayFromZero);
+
+            result.Add(BuildParagraph(new[]
+            {
+                BuildRun(roleTitle, templateRunProps)
+            }, templateParagraphProps));
+
+            var p1 = BuildParagraph(new[]
+            {
+                BuildRun("Valor do HH (Homem-Hora) em dias úteis (segunda a sexta-feira), dentro da jornada normal de trabalho: ", templateRunProps, preserveSpace: true),
+                BuildRun(baseValue.ToString("C2", culture), moneyBlueBold),
+                BuildRun(".", templateRunProps)
+            }, templateParagraphProps);
+            result.Add(p1);
+
+            var p2 = BuildParagraph(new[]
+            {
+                BuildRun("Valor do HH (Homem-Hora) para horas extras realizadas de segunda-feira a sábado, fora da jornada normal de trabalho: ", templateRunProps, preserveSpace: true),
+                BuildRun(overtimeValue.ToString("C2", culture), moneyBlueBold),
+                BuildRun(".", templateRunProps)
+            }, templateParagraphProps);
+            result.Add(p2);
+
+            result.Add(BuildParagraph(new[] { BuildRun(string.Empty, templateRunProps) }, templateParagraphProps));
+        }
+
+        return result;
+    }
+
+    private static Paragraph BuildParagraph(IEnumerable<Run> runs, ParagraphProperties? templateParagraphProps)
+    {
+        var paragraph = new Paragraph();
+        if (templateParagraphProps is not null)
+        {
+            paragraph.ParagraphProperties = (ParagraphProperties)templateParagraphProps.CloneNode(true);
+        }
+
+        foreach (var run in runs)
+        {
+            paragraph.AppendChild(run);
+        }
+
+        return paragraph;
+    }
+
+    private static Run BuildRun(string text, RunProperties? templateRunProps, bool preserveSpace = false)
+    {
+        var run = new Run();
+        run.RunProperties = templateRunProps is null
+            ? BuildCalibri12RunProperties()
+            : (RunProperties)templateRunProps.CloneNode(true);
+
+        var textNode = new Text(text);
+        if (preserveSpace)
+        {
+            textNode.Space = SpaceProcessingModeValues.Preserve;
+        }
+
+        run.AppendChild(textNode);
+        return run;
+    }
+
+    private static RunProperties BuildCalibri12RunProperties()
+    {
+        return new RunProperties(
+            new RunFonts { Ascii = "Calibri", HighAnsi = "Calibri", ComplexScript = "Calibri" },
+            new FontSize { Val = "24" },
+            new FontSizeComplexScript { Val = "24" });
+    }
+
+    private static RunProperties BuildMoneyBlueBoldRunProperties(RunProperties? baseProps)
+    {
+        var props = baseProps is null ? BuildCalibri12RunProperties() : (RunProperties)baseProps.CloneNode(true);
+        props.Bold = new Bold();
+        props.Color = new DocumentFormat.OpenXml.Wordprocessing.Color { Val = "0070C0" };
+        return props;
     }
 
     private static void EnsureUpdateFieldsOnOpen(WordprocessingDocument document)
@@ -874,15 +1108,19 @@ public sealed class ProposalDocumentService : IProposalDocumentService
             "$ErrorActionPreference = 'Stop'",
             "$word = New-Object -ComObject Word.Application",
             "$word.Visible = $false",
+            "$doc = $null",
+            "try {",
             "$doc = $word.Documents.Open('" + escapedInput + "', $false, $true)",
             "$doc.Repaginate()",
             "$doc.TablesOfContents | ForEach-Object { $_.Update() }",
             "$null = $doc.Fields.Update()",
             "$range = $doc.StoryRanges",
-            "while ($range -ne $null) { $null = $range.Fields.Update(); $range = $range.NextStoryRange }",
+            "while ($null -ne $range) { if ($null -ne $range.Fields) { $null = $range.Fields.Update() }; try { $range = $range.NextStoryRange } catch { $range = $null } }",
             "$doc.SaveAs([ref]'" + escapedOutput + "', [ref]17)",
-            "$doc.Close()",
-            "$word.Quit()"
+            "} finally {",
+            "if ($null -ne $doc) { $doc.Close([ref]$false) }",
+            "if ($null -ne $word) { $word.Quit() }",
+            "}"
         });
 
         var startInfo = new ProcessStartInfo

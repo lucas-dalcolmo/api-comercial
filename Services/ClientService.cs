@@ -227,7 +227,7 @@ public sealed class ClientService : IClientService
         var webRootPath = _environment.WebRootPath;
         if (string.IsNullOrWhiteSpace(webRootPath))
         {
-            webRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            webRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
         }
 
         var logosDir = Path.Combine(webRootPath, "uploads", "client-logos");
@@ -269,7 +269,7 @@ public sealed class ClientService : IClientService
         var webRootPath = _environment.WebRootPath;
         if (string.IsNullOrWhiteSpace(webRootPath))
         {
-            webRootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            webRootPath = Path.Combine(_environment.ContentRootPath, "wwwroot");
         }
 
         DeleteLogoIfLocal(entity.LogoUrl, webRootPath);
