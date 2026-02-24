@@ -285,3 +285,34 @@ public sealed record BenefitFormulaVariableQueryDto(
     bool? Active,
     int? Page,
     int? PageSize);
+
+public sealed record OperationalHrEmploymentTypeItemDto(
+    string EmploymentType,
+    int Employees);
+
+public sealed record OperationalHrContractExpiryDto(
+    int ContractId,
+    int? EmployeeId,
+    string EmployeeName,
+    DateTime? EndDate,
+    string EmploymentType,
+    string Region,
+    string Office);
+
+public sealed record OperationalHrDocumentExpiryDto(
+    int DocumentId,
+    int EmployeeId,
+    string EmployeeName,
+    string DocumentType,
+    DateTime? ExpiryDate);
+
+public sealed record OperationalHrDashboardDto(
+    int ActiveEmployees,
+    int ActiveContracts,
+    int ContractsEndingIn30Days,
+    int DocumentsExpiringIn60Days,
+    decimal MonthlyBaseSalaryUsd,
+    decimal MonthlyFixedBenefitsUsd,
+    IReadOnlyList<OperationalHrEmploymentTypeItemDto> EmploymentTypeDistribution,
+    IReadOnlyList<OperationalHrContractExpiryDto> UpcomingContractExpirations,
+    IReadOnlyList<OperationalHrDocumentExpiryDto> UpcomingDocumentExpirations);

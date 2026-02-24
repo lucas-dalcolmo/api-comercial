@@ -81,6 +81,7 @@ builder.Services.AddScoped<IOpportunityService, OpportunityService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
 builder.Services.AddScoped<IProposalDocumentService, ProposalDocumentService>();
 builder.Services.AddScoped<ICommercialDashboardService, CommercialDashboardService>();
+builder.Services.AddScoped<IOperationalHrDashboardService, OperationalHrDashboardService>();
 
 var app = builder.Build();
 

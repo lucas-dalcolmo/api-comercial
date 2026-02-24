@@ -217,10 +217,16 @@ public sealed record CommercialDashboardOpportunityDto(
     string? CurrencyCode,
     string Status);
 
+public sealed record CommercialDashboardForecastBucketDto(
+    string Label,
+    decimal WeightedValue);
+
 public sealed record CommercialDashboardDto(
     int ActiveOpportunities,
     int OpenProposals,
     int ActiveClients,
     decimal TotalPipelineValue,
     decimal? AverageProbabilityPercent,
-    IReadOnlyList<CommercialDashboardOpportunityDto> RecentOpportunities);
+    IReadOnlyList<CommercialDashboardOpportunityDto> RecentOpportunities,
+    IReadOnlyList<CommercialDashboardForecastBucketDto> QuarterlyForecast,
+    IReadOnlyList<CommercialDashboardForecastBucketDto> SemesterForecast);

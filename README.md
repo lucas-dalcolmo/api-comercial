@@ -100,6 +100,14 @@ Example (placeholders):
   - `GET /api/crm/proposals/{id}/employees`
   - `POST /api/crm/proposals/{id}/employees`
   - `DELETE /api/crm/proposals/{id}/employees/{proposalEmployeeId}`
+- CRM Opportunities:
+  - `GET /api/crm/opportunities`
+  - `GET /api/crm/opportunities/{id}`
+  - `POST /api/crm/opportunities`
+  - `PATCH /api/crm/opportunities/{id}`
+- Dashboards:
+  - `GET /api/crm/dashboard/commercial`
+  - `GET /api/hr/dashboard/operational`
 
 Detailed payload/response examples: `docs-crm-examples.md`.
 
@@ -148,6 +156,34 @@ Detailed payload/response examples: `docs-crm-examples.md`.
 - Hourly value rule:
   - `hourlyValueSnapshot = sellPriceSnapshot / 220` (rounded to 4 decimals)
 
+## Opportunity flow and probability
+- Commercial lifecycle is enforced as:
+  - create/select client
+  - create opportunity
+  - create proposal linked to opportunity
+- Proposal rules:
+  - `OpportunityId` is required on proposal creation
+  - opportunity must belong to selected client
+  - only one active proposal per opportunity
+  - linked `OpportunityId` cannot be changed after proposal creation
+- Probability:
+  - calculated in backend from weighted commercial factors
+  - recalculated and persisted on create/update of opportunity
+  - exposed in opportunity list and detail DTOs (`probabilityPercent`)
+
+## Logo upload and persistence
+- Upload endpoint uses `multipart/form-data` DTO wrapping (`ClientLogoUploadDto`) for Swagger compatibility with `IFormFile`.
+- Client logo path is persisted in `crm.Client.LogoUrl`.
+- Proposal PDF export requires a persisted client logo (`domain_error` when missing).
+
+## Dashboards
+- Commercial dashboard (`/api/crm/dashboard/commercial`) uses current CRM data and returns:
+  - KPI cards
+  - recent opportunities
+  - weighted forecast by quarter
+  - weighted forecast by semester
+- Operational HR dashboard (`/api/hr/dashboard/operational`) returns operational KPIs and allocation-focused data model for frontend widgets.
+
 ## Proposal Employees stability/performance
 - Endpoint: `GET /api/crm/proposals/{id}/employees`
 - Query behavior:
@@ -167,3 +203,8 @@ dotnet ef dbcontext scaffold "Server=SERVER;Database=DBNAME;User Id=USER;Passwor
 Notes:
 - The current `ApeironDbContext` is a partial placeholder.
 - After scaffolding, keep/update the generated context as needed and remove the placeholder if it conflicts.
+
+## DB scripts and migrations
+- Base bootstrap: `scripts/init-db.sql`
+- CRM Proposals/Clients migration: `scripts/migrations/20260213_crm_proposals_clients.sql`
+- CRM Opportunities migration/backfill: `scripts/migrations/20260224_crm_opportunities.sql`
