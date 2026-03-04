@@ -42,12 +42,47 @@ public sealed class BenefitFormulaEvaluator : IBenefitFormulaEvaluator
         if (normalized.Length >= 2
             && normalized[0] == '['
             && normalized[^1] == ']'
-            && !IsVariableToken(normalized))
+            && !IsVariableToken(normalized)
+            && IsWrappedBySingleOuterBracketPair(normalized))
         {
             normalized = normalized[1..^1].Trim();
         }
 
         return normalized;
+    }
+
+    private static bool IsWrappedBySingleOuterBracketPair(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text[0] != '[' || text[^1] != ']')
+        {
+            return false;
+        }
+
+        var depth = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var ch = text[i];
+            if (ch == '[')
+            {
+                depth++;
+            }
+            else if (ch == ']')
+            {
+                depth--;
+                if (depth == 0 && i < text.Length - 1)
+                {
+                    // There is more expression outside the first [...] pair.
+                    return false;
+                }
+            }
+
+            if (depth < 0)
+            {
+                return false;
+            }
+        }
+
+        return depth == 0;
     }
 
     private static bool TryToRpn(string expression, out List<string> output, out string? errorMessage)
